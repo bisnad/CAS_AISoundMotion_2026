@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Shortcut for running sa3_gradio.py with the right Python (./.venv if it exists).
+# All args are passed through unchanged.
+#
+# Examples:
+#   ./sa3-gradio                            # default: sm-music + same-s, local UI
+#   ./sa3-gradio --dit medium --decoder same-l
+#   ./sa3-gradio --share                    # public gradio.live URL
+#   ./sa3-gradio --help
+
+set -e
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Prefer the producer venv (`sa3_torch29`) since it has BOTH gradio + tensorrt
+# + stable_audio_tools — needed for the PT-FP32-GT debug backend. Fall back to
+# the consumer .venv if the producer one isn't available.
+PT_VENV_PY="/admin/home-cj/sa/venvs/sa3_torch29/bin/python"
+CONSUMER_VENV_PY="${SCRIPT_DIR}/.venv/bin/python"
+
+if [ -x "${PT_VENV_PY}" ]; then
+    exec "${PT_VENV_PY}" "${SCRIPT_DIR}/scripts/sa3_gradio.py" "$@"
+elif [ -x "${CONSUMER_VENV_PY}" ]; then
+    exec "${CONSUMER_VENV_PY}" "${SCRIPT_DIR}/scripts/sa3_gradio.py" "$@"
+elif command -v uv >/dev/null 2>&1; then
+    exec uv run --with-requirements "${SCRIPT_DIR}/requirements.txt" \
+        python "${SCRIPT_DIR}/scripts/sa3_gradio.py" "$@"
+else
+    echo "error: no python venv found. run: bash ${SCRIPT_DIR}/install.sh" >&2
+    exit 1
+fi

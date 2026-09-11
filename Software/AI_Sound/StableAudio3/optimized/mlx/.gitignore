@@ -1,0 +1,19 @@
+# Model weights — pulled from HuggingFace, never committed here.
+*.npz
+
+# Generated audio — anywhere on the tree, including output/.
+*.wav
+
+# Python virtualenv created by install.sh
+.venv/
+
+# Python bytecode caches
+__pycache__/
+*.pyc
+output/gradio/
+
+# Local LoRA library scanned by the gradio UI (user adapters, never committed)
+loras/
+
+# Trainer telemetry (written to cwd, underfit convention)
+loss_by_timestep.bin

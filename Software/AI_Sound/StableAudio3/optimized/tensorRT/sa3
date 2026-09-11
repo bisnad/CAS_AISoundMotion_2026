@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Shortcut for running sa3_trt.py with the right Python (from ./.venv if it exists).
+# All args are passed through unchanged.
+#
+# Examples:
+#   ./sa3 --prompt "lofi house" --dit sm-music --decoder same-s --out lofi.wav
+#   ./sa3 --prompt "piano arpeggio" --dit medium --decoder same-l
+#   ./sa3 --help
+
+set -e
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV_PY="${SCRIPT_DIR}/.venv/bin/python"
+
+if [ -x "${VENV_PY}" ]; then
+    # Use the venv directly — faster than `uv run` (no project resolution) and works
+    # without uv installed at runtime.
+    exec "${VENV_PY}" "${SCRIPT_DIR}/scripts/sa3_trt.py" "$@"
+elif command -v uv >/dev/null 2>&1; then
+    # No venv yet, but uv is on PATH — let uv resolve from requirements.txt
+    exec uv run --with-requirements "${SCRIPT_DIR}/requirements.txt" \
+        python "${SCRIPT_DIR}/scripts/sa3_trt.py" "$@"
+else
+    echo "error: no .venv at ${VENV_PY} and 'uv' not on PATH." >&2
+    echo "       run: bash ${SCRIPT_DIR}/install.sh" >&2
+    exit 1
+fi

@@ -1,0 +1,26 @@
+[project]
+name = "ai-sound"
+version = "0.1.0"
+description = "Audio analysis, autoencoder, and clustering scripts"
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    "torch==2.7.1",
+    "torchaudio==2.7.1",
+    "diffusers==0.30.3",
+    "transformers>=5.8.0",
+    "scikit-learn==1.5.2",
+    "matplotlib>=3.10.8",
+    "librosa>=0.11.0",
+    "simpleaudio",
+    "sounddevice",
+    "soundfile>=0.13.1",
+    "PyQt5",
+    "pyqtgraph",
+    "PyOpenGL",
+    "vispy",
+    "jupyterlab",
+    "python-osc",
+    "auraloss",
+    "vocos",
+    "ipywidgets",
+]

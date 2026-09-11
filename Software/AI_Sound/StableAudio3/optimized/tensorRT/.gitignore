@@ -1,0 +1,38 @@
+# TRT engines + everything else under models/ — downloaded from HuggingFace by
+# install.sh based on local GPU arch, never committed here. The blanket models/
+# rule catches *.trt, tokenizer.json, .arch, and any future engine-adjacent
+# artifacts (.calib, .cache, etc.) without per-extension rules.
+models/
+*.trt
+
+# ONNX files — built by build/ scripts, published from the HF model repo
+# (stable-audio-3-optimized) not from this github repo. Ignored as a safety net
+# in case a build runs without an HF clone available and falls back to local.
+onnx/
+*.onnx
+*.onnx.data
+
+# T5 tokenizer — generally ignored (downloaded under models/<arch>/t5gemma/
+# alongside the engine for legacy fallback), but the canonical copy ships
+# bundled at scripts/tokenizer.json (arch-agnostic, 34 MB) so the build path
+# doesn't need to fetch it. Whitelist that specific file.
+tokenizer.json
+!scripts/tokenizer.json
+
+# Generated audio — anywhere on the tree, including output/.
+*.wav
+
+# Python virtualenv created by install.sh
+.venv/
+
+# Python bytecode caches
+__pycache__/
+*.pyc
+
+# Un-ignore our build/ source — the parent repo's .gitignore has a stock
+# Python `build/` rule (setuptools artifacts) that would otherwise hide it.
+!build/
+!build/**
+# But keep __pycache__/ ignored even under build/ (the un-ignore above would
+# accidentally re-include build/__pycache__/ otherwise).
+build/**/__pycache__/

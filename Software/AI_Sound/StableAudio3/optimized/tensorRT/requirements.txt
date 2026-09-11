@@ -1,0 +1,9 @@
+torch
+# TRT 10.15.x — pinned to the version the published engines were built with.
+# Engines are NOT compatible across minor TRT versions (10.16 won't load 10.15 engines).
+tensorrt==10.15.1.29
+numpy
+tokenizers
+huggingface-hub
+nvidia-ml-py    # process-local VRAM tracking (replaces pynvml — same module name)
+gradio>=4.0     # web UI wrapper (./sa3-gradio); not used by the CLI ./sa3

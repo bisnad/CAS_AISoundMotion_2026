@@ -1,0 +1,53 @@
+{
+	"jointNames":
+	[
+		"Right_Foot",
+		"Right_Knee",
+		"Right_Hip",
+		"Left_Hip",
+		"Left_Knee",
+		"Left_Foot",
+		"Right_Hand",
+		"Right_Elbow",
+		"Right_Shoulder",
+		"Left_Shoulder",
+		"Left_Elbow",
+		"Left_Hand",
+		"Neck",
+		"Head"
+	],
+	"jointChildren":
+	[
+		[1],
+		[2],
+		[8],
+		[4],
+		[5],
+		[],
+		[],
+		[6],
+		[7, 12],
+		[3, 10],
+		[11],
+		[],
+		[13],
+		[]
+	],
+	"jointParents":
+	[
+		-1,
+		0,
+		1,
+		9,
+		3,
+		4,
+		7,
+		8,
+		2,
+		12,
+		9,
+		10,
+		8,
+		12
+	]
+}

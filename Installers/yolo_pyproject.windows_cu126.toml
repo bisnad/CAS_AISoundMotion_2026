@@ -1,0 +1,54 @@
+[project]
+name = "yolo"
+version = "0.1.0"
+description = "Ultralytics YOLO tools"
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    "torch==2.7.1",
+    "torchvision==0.22.1",
+    "opencv-python",
+    "ultralytics",
+    "scipy",
+    "pandas",
+    "matplotlib",
+    "seaborn",
+    "pillow",
+    "pyyaml",
+    "PyQt5==5.15.11",
+    "PyQt5-Qt5==5.15.2",
+    "PyQt5-sip==12.17.0",
+    "pyqtgraph",
+    "PyOpenGL",
+    "tensorboardX",
+    "tqdm",
+    "easydict",
+    "prettytable",
+    "chumpy",
+    "imageio-ffmpeg",
+    "ipdb",
+    "pytorch-metric-learning",
+    "smplx",
+    "roma",
+    "python-osc",
+    "fbx",
+]
+
+[tool.uv]
+environments = [
+    "sys_platform == 'win32' and platform_machine == 'AMD64'",
+]
+
+required-environments = [
+    "sys_platform == 'win32' and platform_machine == 'AMD64'",
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu126" }
+torchvision = { index = "pytorch-cu126" }
+
+fbx = { path = "../../../../Installers/fbx-2020.3.7-cp310-none-win_amd64.whl" }

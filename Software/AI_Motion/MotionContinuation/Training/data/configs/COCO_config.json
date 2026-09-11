@@ -1,0 +1,62 @@
+{
+	"jointNames":
+	[
+		"Nose",
+		"Left_Eye",
+		"Right_Eye",
+		"Left_Ear",
+		"Right_Ear",
+		"Left_Shoulder",
+		"Right_Shoulder",
+		"Left_Elbow",
+		"Right_Elbow",
+		"Left_Wrist",
+		"Right_Wrist",
+		"Left_Hip",
+		"Right_Hip",
+		"Left_Knee",
+		"Right_Knee",
+		"Left_Ankle",
+		"Right_Ankle"
+	],
+	"jointChildren":
+	[
+		[1, 2],
+		[3],
+		[4],
+		[5],
+		[6],
+		[7, 11],
+		[8, 12],
+		[9],
+		[10],
+		[],
+		[],
+		[13],
+		[14],
+		[15],
+		[16],
+		[],
+		[]
+	],
+	"jointParents":
+	[
+		-1,
+		0,
+		0,
+		1,
+		2,
+		3,
+		4,
+		5,
+		6,
+		7,
+		8,
+		5,
+		6,
+		11,
+		12,
+		13,
+		14
+	]
+}
