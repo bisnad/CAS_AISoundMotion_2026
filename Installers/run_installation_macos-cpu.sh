@@ -2,12 +2,34 @@
 #
 # copy_pyproject_files.sh
 #
-# Copies a set of pyproject.toml source files from the current folder
-# into their respective destination folders, renaming them in the
-# process. Prints the source file, target folder, and target file
-# name for each copy operation.
+# Copies a set of pyproject.toml source files from the folder this
+# script lives in (the "Installers" folder) into their respective
+# destination folders, renaming them in the process. Prints the
+# source file, target folder, and target file name for each copy.
+#
+# Works both when run from a Terminal (cd + ./copy_pyproject_files.sh)
+# and when double-clicked from a file manager, because it resolves
+# its own location first and switches into it.
 
 set -euo pipefail
+
+# --- Resolve the real directory this script lives in, following symlinks ---
+resolve_script_dir() {
+    local source="${BASH_SOURCE[0]}"
+    while [[ -h "$source" ]]; do
+        local dir
+        dir="$(cd -P "$(dirname "$source")" >/dev/null 2>&1 && pwd)"
+        source="$(readlink "$source")"
+        [[ "$source" != /* ]] && source="$dir/$source"
+    done
+    cd -P "$(dirname "$source")" >/dev/null 2>&1 && pwd
+}
+
+SCRIPT_DIR="$(resolve_script_dir)"
+cd "$SCRIPT_DIR"
+
+echo "Running from: $SCRIPT_DIR"
+echo
 
 # Each entry: "source_file|target_folder|target_filename"
 FILES=(
@@ -40,3 +62,8 @@ for entry in "${FILES[@]}"; do
 done
 
 echo "All copy operations completed."
+
+# Keep the terminal window open when launched by double-clicking,
+# so you can read the output before it closes automatically.
+read -n 1 -s -r -p "Press any key to close this window..."
+echo
