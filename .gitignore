@@ -5,3 +5,4 @@ Software/AI_Sound/.DS_Store
 Software/AI_Sound/pyproject.toml
 Software/pyproject.toml
 Software/AI_Motion/MotionTracking/Mediapipe/pyproject.toml
+Software/AI_Motion/MotionTracking/Yolo/pyproject.toml
