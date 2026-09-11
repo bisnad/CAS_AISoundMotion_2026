@@ -17,6 +17,9 @@ dependencies = [
     "transformers>=5.8.0",
     "soundfile>=0.13.1",
     "librosa>=0.11.0",
+    "PyQt5",
+    "pyqtgraph",
+    "PyOpenGL",
 ]
 
 [project.optional-dependencies]

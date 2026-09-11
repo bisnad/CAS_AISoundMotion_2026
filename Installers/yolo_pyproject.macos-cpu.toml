@@ -35,13 +35,11 @@ chumpy = ["pip"]
 
 [tool.uv]
 environments = [
-    "sys_platform == 'darwin' and platform_machine == 'arm64'",
-    "sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "sys_platform == 'darwin' and platform_machine == 'arm64'"
 ]
 
 required-environments = [
-    "sys_platform == 'darwin' and platform_machine == 'arm64'",
-    "sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "sys_platform == 'darwin' and platform_machine == 'arm64'"
 ]
 
 [tool.uv.sources]
