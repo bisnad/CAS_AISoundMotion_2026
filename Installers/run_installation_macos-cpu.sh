@@ -36,6 +36,7 @@ FILES=(
     "main_pyproject.macos-cpu.toml|../Software|pyproject.toml"
     "aiforsound_pyproject.toml|../Software/AI_Sound|pyproject.toml"
     "aiformotion_pyproject.toml|../Software/AI_Motion|pyproject.toml"
+    "stableaudio3_pyproject.macos-cpu.toml|../Software/AI_Sound/StableAudio3|pyproject.toml"
     "mediapipe_pyproject.macos-cpu.toml|../Software/AI_Motion/MotionTracking/Mediapipe|pyproject.toml"
     "yolo_pyproject.macos-cpu.toml|../Software/AI_Motion/MotionTracking/Yolo|pyproject.toml"
 )

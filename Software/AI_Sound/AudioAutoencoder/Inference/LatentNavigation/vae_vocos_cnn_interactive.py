@@ -42,7 +42,7 @@ Audio Settings
 """
 
 # audio settings
-audio_file = "E:/Data/audio/Gutenberg/Night_and_Day_by_Virginia_Woolf_48khz.wav"
+audio_file = "data/audio/Night_and_Day_by_Virginia_Woolf_48khz.wav"
 
 audio_sample_rate = 48000 # numer of audio samples per sec
 audio_channels = 1

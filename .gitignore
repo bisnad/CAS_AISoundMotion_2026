@@ -6,3 +6,16 @@ Software/AI_Sound/pyproject.toml
 Software/pyproject.toml
 Software/AI_Motion/MotionTracking/Mediapipe/pyproject.toml
 Software/AI_Motion/MotionTracking/Yolo/pyproject.toml
+/Software/AI_Motion/MocapPlayer/__pycache__
+/Software/AI_Motion/MocapPlayer/common/__pycache__
+/Software/AI_Motion/MocapPlayer/common/__pycache__
+/Software/AI_Motion/MocapPlayer/common/__pycache__
+/Software/AI_Motion/MocapPlayer/common/__pycache__
+/Software/AI_Sound/AudioAnalysis/__pycache__
+/Software/AI_Sound/AudioAnalysis/__pycache__
+/Software/AI_Sound/AudioAnalysis/data
+/Software/AI_Sound/AudioAutoencoder/Inference/LatentNavigation/data
+*.lock
+Software/AI_Sound/AudioAnalysis/.DS_Store
+Software/AI_Motion/MotionTracking/Mediapipe/.DS_Store
+Software/AI_Sound/StableAudio3/pyproject.toml
