@@ -4,16 +4,15 @@ version = "0.1.0"
 description = "MediaPipe-based pose/hand/face tracking tools"
 requires-python = ">=3.10,<3.11"
 dependencies = [
-    "numpy",
-    "opencv-python",
+    "numpy==1.26.4",
+    "opencv-contrib-python==4.11.0.86",
     "protobuf",
     "absl-py",
     "scipy",
     "PyQt5",
     "pyqtgraph",
     "PyOpenGL",
-    "tensorflow",
-    "mediapipe",
+    "mediapipe==0.10.21",
     "python-osc",
     "fbx",
 ]
