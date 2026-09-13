@@ -19,7 +19,8 @@ repo_id = "cvssp/audioldm2"
 #repo_id = "cvssp/audioldm2-large"
 #repo_id = "cvssp/audioldm2-music"
 #pipe = AudioLDM2Pipeline.from_pretrained(repo_id, torch_dtype=torch.float16)
-pipe = AudioLDM2Pipeline.from_pretrained(repo_id, torch_dtype=torch.float32)
+#pipe = AudioLDM2Pipeline.from_pretrained(repo_id, torch_dtype=torch.float32)
+pipe = AudioLDM2Pipeline.from_pretrained(repo_id, torch_dtype=torch.float32, revision="refs/pr/5")
 pipe = pipe.to(device)
 
 """
