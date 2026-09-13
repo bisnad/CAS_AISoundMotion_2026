@@ -33,3 +33,4 @@ Software/AI_Sound/AudioAutoencoder/Inference/LatentNavigation/.DS_Store
 /Software/AI_Sound/StableAudio3/stable_audio_3/inference/__pycache__
 /Software/AI_Sound/StableAudio3/stable_audio_3/models/__pycache__
 /Software/AI_Sound/StableAudio3/stable_audio_3/models/lora/__pycache__
+/Software/AI_Sound/AudioAnalysis/__pycache__
