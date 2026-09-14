@@ -36,14 +36,14 @@ from pythonosc.udp_client import SimpleUDPClient
 Mocap Settings
 """
 
-"""
+
 mocap_file_path = "data/mocap"
-mocap_files = ["Muriel_Take1.fbx"]
+mocap_files = ["Muriel_Take4_Blumen_Baile.fbx"]
 mocap_pos_scale = 1.0
 mocap_fps = 50
 mocap_joint_weight_file = "configs/joint_weights_xsens_fbx.json"
 mocap_body_weight = 60
-"""
+
 
 """
 mocap_file_path = "E:/Data/mocap/Yurika/Mediapipe_v2_fbx/Classes"
@@ -64,12 +64,14 @@ mocap_joint_weight_file = "configs/joint_weights_mediapipe.json"
 mocap_body_weight = 60
 """
 
+"""
 mocap_file_path = "E:/Data/mocap/Stefanie/fbx"
 mocap_files = ["p5_02_01_video_20260715_123433_yolo.fbx"]
 mocap_pos_scale = 1.0
 mocap_fps = 30
 mocap_joint_weight_file = "configs/joint_weights_human36_fake.json"
 mocap_body_weight = 60
+"""
 
 mocap_rot_sequence = [0, 1, 2] # SciPy Euler sequence
 

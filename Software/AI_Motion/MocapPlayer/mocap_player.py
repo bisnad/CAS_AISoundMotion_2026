@@ -20,7 +20,7 @@ Setup Motion Player
 """
 
 
-motion_player.config["file_name"] = "data/mocap/Muriel_Take1.fbx"
+motion_player.config["file_name"] = "data/mocap/Muriel_Take4_Blumen_Baile.fbx"
 motion_player.config["fps"] = 50
 
 
