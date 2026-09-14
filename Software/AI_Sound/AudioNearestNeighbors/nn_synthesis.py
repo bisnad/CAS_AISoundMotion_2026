@@ -47,7 +47,6 @@ class NNSynthesis():
         with self._lock:
             available = self.model.get_output_waveform()
             available_length = available.shape[0]
-
             end_cursor = self._play_cursor + frames
 
             buf = np.zeros(frames, dtype=np.float32)

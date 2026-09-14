@@ -47,11 +47,14 @@ imports
 """
 
 import sys
+import numpy as np
 
 import analysis as aa
 import nn_model
 import nn_synthesis
 import audio_gui
+
+
 
 """
 Settings
@@ -65,6 +68,16 @@ AUDIO_EXCERPT_OFFSET_SECONDS = 2.5
 AUDIO_FEATURE_NAMES = ["root mean square", "mfcc"]
 OUTPUT_DEVICE = None
 STEP_INTERVAL_SECONDS = 0.05   # how often (in seconds) the background thread calls model.step()
+
+"""
+Warmup Librosa (necessary for MacOS only)
+force librosa's internal Numba/llvmlite JIT compilation to happen
+here, on the main thread, before any background QThread
+"""
+
+_dummy = np.zeros(int(AUDIO_SAMPLE_RATE * AUDIO_EXCERPT_SECONDS), dtype=np.float32)
+aa.rms([_dummy])
+aa.mfcc([_dummy], AUDIO_SAMPLE_RATE)
 
 """
 Create Model
