@@ -8,3 +8,6 @@ cd "$SCRIPT_PATH"
 
 # Run the Python script
 uv run audio_analysis.py
+
+# Exit shell
+exit 0
