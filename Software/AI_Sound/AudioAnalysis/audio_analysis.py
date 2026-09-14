@@ -55,7 +55,7 @@ Audio Source Settings
 
 # choose one of: "file" or "mic"
 AUDIO_MODE = "file"
-AUDIO_FILE_PATH = "data/audio/Night_and_Day_by_Virginia_Woolf_48khz.wav"   # only used when AUDIO_MODE == "file"
+AUDIO_FILE_PATH = "data/audio/Night_and_Day_by_Virginia_Woolf_48khz_excerpt.wav"   # only used when AUDIO_MODE == "file"
 INPUT_DEVICE = None                       # None = default input device, only used when AUDIO_MODE == "mic"
 OUTPUT_DEVICE = None                      # None = default output device, used for file playback
 AUDIO_SAMPLE_RATE = 48000                 # fallback / mic-mode rate; file mode uses the file's own rate
