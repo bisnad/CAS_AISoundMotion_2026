@@ -37,14 +37,19 @@ import auraloss
 # Compute Unit
 # -------------------------------------------------------------------------------------------------
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-print('Using {} device'.format(device))
+if torch.cuda.is_available():
+    device = 'cuda'
+elif torch.backends.mps.is_available():
+    device = 'mps'
+else:
+    device = 'cpu'
+print(f'Using {device} device')
 
 # -------------------------------------------------------------------------------------------------
 # Audio Settings
 # -------------------------------------------------------------------------------------------------
 
-audio_data_path = "E:/Data/audio/Gutenberg/"
+audio_data_path = "../../../../../CAS_AISoundMotion_Data_2026/Audio/Gutenberg/"
 audio_data_files = ["Night_and_Day_by_Virginia_Woolf_48khz.wav"]
 audio_valid_ranges = [[-1.0, -1.0]]
 
@@ -60,7 +65,7 @@ audio_mel_count_vae = None
 # Save Paths Settings
 # -------------------------------------------------------------------------------------------------
 
-save_path = "results/vae_cnn_Gutenberg_ld32_2"
+save_path = "results/vae_cnn_Gutenberg_ld32"
 save_weights_path = os.path.join(save_path, "weights/")
 save_history_path = os.path.join(save_path, "histories/")
 save_audio_path = os.path.join(save_path, "audio/")
