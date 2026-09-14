@@ -55,7 +55,7 @@ import audio_control
 Audio Settings
 """
 
-AUDIO_FILE_PATH = "E:/Data/audio/Gutenberg/Night_and_Day_by_Virginia_Woolf_48khz.wav"
+AUDIO_FILE_PATH = "data/audio/Night_and_Day_by_Virginia_Woolf_48khz_excerpt.wav"
 AUDIO_SAMPLE_RATE = 48000       # fallback only - the file's own sample rate always wins
 AUDIO_EXCERPT_LENGTH_MS = 100   # excerpt length, in milliseconds
 AUDIO_EXCERPT_OFFSET_MS = 90    # hop between excerpt starts, in milliseconds
