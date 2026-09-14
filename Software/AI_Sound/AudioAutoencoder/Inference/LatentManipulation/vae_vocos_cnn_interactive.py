@@ -31,8 +31,8 @@ Audio Settings
 """
 # Define a list of audio files to load
 audio_file_paths = [
-    "E:/Data/audio/Gutenberg/Night_and_Day_by_Virginia_Woolf_48khz.wav",
-    "E:/Data/audio/Gutenberg/Night_and_Day_by_Virginia_Woolf_48khz.wav"
+    "data/audio/Take1__double_Bind_HQ_audio_crop_48khz.wav",
+    "data/audio/Take2_Hibr_II_HQ_audio_crop_48khz.wav"
 ]
 
 audio_sample_rate = 48000
@@ -55,8 +55,9 @@ latent_dim = 32
 ae_conv_channel_counts = [ 16, 32, 64, 128 ]
 ae_conv_kernel_size = (5, 3)
 ae_dense_layer_sizes = [ 512 ]
-ae_encoder_weights_file = "../../Training/results/vae_cnn_Gutenberg_ld32/weights/encoder_weights_epoch_400"
-ae_decoder_weights_file = "../../Training/results/vae_cnn_Gutenberg_ld32/weights/decoder_weights_epoch_400"
+
+ae_encoder_weights_file = "data/models/vae_cnn_Stocos_ld32/encoder_weights_epoch_400"
+ae_decoder_weights_file = "data/models/vae_cnn_Stocos_ld32/decoder_weights_epoch_400"
 
 """
 OSC Control Settings

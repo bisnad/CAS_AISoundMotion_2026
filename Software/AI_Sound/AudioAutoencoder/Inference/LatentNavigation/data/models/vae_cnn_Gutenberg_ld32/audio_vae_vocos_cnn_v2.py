@@ -37,25 +37,16 @@ import auraloss
 # Compute Unit
 # -------------------------------------------------------------------------------------------------
 
-if torch.cuda.is_available():
-    device = 'cuda'
-elif torch.backends.mps.is_available():
-    device = 'mps'
-else:
-    device = 'cpu'
-print(f'Using {device} device')
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+print('Using {} device'.format(device))
 
 # -------------------------------------------------------------------------------------------------
 # Audio Settings
 # -------------------------------------------------------------------------------------------------
 
-audio_data_path = "../../../Data/Audio/Stocos/"
-audio_data_files = ["Take1__double_Bind_HQ_audio_crop_48khz.wav",
-                    "Take2_Hibr_II_HQ_audio_crop_48khz.wav",
-                    "Take3_RO_37-4-1_HQ_audio_crop_48khz.wav"]
-audio_valid_ranges = [[-1.0, -1.0],
-                    [-1.0, -1.0],
-                    [-1.0, -1.0]]
+audio_data_path = "E:/data/audio/Gutenberg/"
+audio_data_files = ["Night_and_Day_by_Virginia_Woolf_48khz.wav"]
+audio_valid_ranges = [[-1.0, -1.0]]
 
 audio_sample_rate = 48000 # numer of audio samples per sec
 audio_channels = 1
@@ -69,7 +60,7 @@ audio_mel_count_vae = None
 # Save Paths Settings
 # -------------------------------------------------------------------------------------------------
 
-save_path = "results_vae_cnn_Stocos_ld32"
+save_path = "results_vae_cnn_Gutenberg_ld32"
 save_weights_path = os.path.join(save_path, "weights/")
 save_history_path = os.path.join(save_path, "histories/")
 save_audio_path = os.path.join(save_path, "audio/")
@@ -118,9 +109,7 @@ decoder_weights_file = "results/weights/decoder_weights_epoch_400"
 # -------------------------------------------------------------------------------------------------
 
 audio_test_starts_sec = [
-    [5, 50, 100],
-    [5, 50, 100],
-    [5, 50, 100]
+    [5, 50, 100, 140, 160, 214, 270, 340]
 ]
 
 audio_test_duration_sec = 20

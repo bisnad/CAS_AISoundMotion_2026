@@ -34,15 +34,20 @@ Settings
 Compute Device
 """
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-print(f"Using {device.upper()} device")
+if torch.cuda.is_available():
+    device = 'cuda'
+elif torch.backends.mps.is_available():
+    device = 'mps'
+else:
+    device = 'cpu'
+print(f'Using {device} device')
 
 """
 Audio Settings
 """
 
 # audio settings
-audio_file = "data/audio/Night_and_Day_by_Virginia_Woolf_48khz.wav"
+audio_file = "data/audio/Night_and_Day_by_Virginia_Woolf_48khz_excerpt.wav"
 
 audio_sample_rate = 48000 # numer of audio samples per sec
 audio_channels = 1
@@ -65,8 +70,8 @@ latent_dim = 32
 ae_conv_channel_counts = [ 16, 32, 64, 128 ]
 ae_conv_kernel_size = (5, 3)
 ae_dense_layer_sizes = [ 512 ]
-ae_encoder_weights_file = "../../Training/results/vae_cnn_Gutenberg_ld32/weights/encoder_weights_epoch_400"
-ae_decoder_weights_file = "../../Training/results/vae_cnn_Gutenberg_ld32/weights/decoder_weights_epoch_400"
+ae_encoder_weights_file = "data/models/vae_cnn_Gutenberg_ld32/encoder_weights_epoch_400"
+ae_decoder_weights_file = "data/models/vae_cnn_Gutenberg_ld32/decoder_weights_epoch_400"
 
 
 # automated settings
@@ -217,7 +222,7 @@ decoder.eval()
 print("Generating latents for mapping...")
 audio_excerpt_start_frame = 0
 audio_excerpt_end_frame = audio_waveform.shape[1]
-audio_excerpt_frame_offset = 100000
+audio_excerpt_frame_offset = 10000
 audio_excerpts = []
 for fI in range(audio_excerpt_start_frame, audio_excerpt_end_frame - audio_window_length_vae, audio_excerpt_frame_offset):
     audio_excerpt = audio_waveform[0, fI:fI + audio_window_length_vae]
