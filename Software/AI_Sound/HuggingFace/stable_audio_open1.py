@@ -15,11 +15,12 @@ pipe = StableAudioPipeline.from_pretrained("stabilityai/stable-audio-open-1.0", 
 pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config)
 pipe = pipe.to(device)
 
-original_decode = pipe.vae.decode
-def patched_decode(z, *args, **kwargs):
-    return original_decode(z.to("cpu"), *args, **kwargs)
-pipe.vae.decode = patched_decode
-pipe.vae = pipe.vae.to("cpu")
+if device == 'mps':
+    original_decode = pipe.vae.decode
+    def patched_decode(z, *args, **kwargs):
+        return original_decode(z.to("cpu"), *args, **kwargs)
+    pipe.vae.decode = patched_decode
+    pipe.vae = pipe.vae.to("cpu")
 
 prompt = "A Voice that sounds like Creaking Wood"
 negative_prompt = "Low quality."
