@@ -23,7 +23,7 @@ dependencies = [
     "tqdm",
     "easydict",
     "prettytable",
-    "chumpy",
+    "chumpy-fix",
     "imageio-ffmpeg",
     "ipdb",
     "pytorch-metric-learning",
@@ -31,6 +31,8 @@ dependencies = [
     "roma",
     "python-osc",
     "fbx",
+    "pip>=26.2.1",
+    "setuptools>=84.0.0",
 ]
 
 [tool.uv]

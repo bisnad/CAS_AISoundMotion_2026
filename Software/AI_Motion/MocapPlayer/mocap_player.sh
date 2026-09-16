@@ -7,4 +7,7 @@ SCRIPT_PATH=$(cd "$(dirname "$0")"; pwd -P)
 cd "$SCRIPT_PATH"
 
 # Run the Python script
-uv run python mocap_player.py
+uv run mocap_player.py
+
+# Exit shell
+exit 0

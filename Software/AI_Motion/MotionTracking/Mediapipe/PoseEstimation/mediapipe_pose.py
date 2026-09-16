@@ -74,6 +74,7 @@ KINEMATIC_HAND_CONNECTIONS = [
     (0, 17), (17, 18), (18, 19), (19, 20)
 ]
 
+MODELS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
 
 def build_parents_from_edges(num_nodes, edges, root_node=0):
     parents = [-1] * num_nodes
@@ -205,6 +206,50 @@ class PoseFilter:
 # 2. FBX EXPORT & KINEMATICS
 # ==============================================================================
 
+# Standard FBX time modes and their fps, used to pick the closest matching
+# preset (falls back to eCustom when nothing matches closely enough).
+_FBX_STANDARD_FPS_MODES = [
+    (120.0, "eFrames120"),
+    (100.0, "eFrames100"),
+    (60.0, "eFrames60"),
+    (59.94, "eFrames59dot94"),
+    (50.0, "eFrames50"),
+    (48.0, "eFrames48"),
+    (30.0, "eFrames30"),
+    (29.97, "eNTSCDropFrame"),
+    (25.0, "ePAL"),
+    (24.0, "eFrames24"),
+    (96.0, "eFrames96"),
+    (72.0, "eFrames72"),
+]
+
+
+def _resolve_fbx_time_mode(fps):
+    """
+    Map an arbitrary fps value to the closest standard FbxTime::EMode, or to
+    eCustom if nothing matches within tolerance. Returns (time_mode_enum, is_custom).
+    Handles both old (KTime-style, flat) and new (FbxTime.EMode-style, nested)
+    enum namespaces across FBX SDK versions.
+    """
+    def _get_enum(name):
+        try:
+            return getattr(fbx.FbxTime.EMode, name)
+        except AttributeError:
+            return getattr(fbx.FbxTime, name)
+
+    for standard_fps, name in _FBX_STANDARD_FPS_MODES:
+        if abs(fps - standard_fps) < 0.01:
+            try:
+                return _get_enum(name), False
+            except AttributeError:
+                break
+
+    try:
+        return _get_enum("eCustom"), True
+    except AttributeError:
+        return _get_enum("eDefaultMode"), False
+
+
 def export_fbx(filename, frames_data, parents, fps=30.0):
     if 'fbx' not in globals():
         return
@@ -213,6 +258,27 @@ def export_fbx(filename, frames_data, parents, fps=30.0):
     ios = fbx.FbxIOSettings.Create(manager, fbx.IOSROOT)
     manager.SetIOSettings(ios)
     scene = fbx.FbxScene.Create(manager, "MocapScene")
+
+    # --- Set the scene's global frame rate so importers (e.g. MotionBuilder)
+    # report the correct fps instead of defaulting to 30. Setting only the
+    # per-key FbxTime values is NOT sufficient; the scene's time mode /
+    # custom frame rate must be set explicitly. ---
+    time_mode, is_custom = _resolve_fbx_time_mode(fps)
+    try:
+        if is_custom:
+            fbx.FbxTime.SetGlobalTimeMode(time_mode, float(fps))
+        else:
+            fbx.FbxTime.SetGlobalTimeMode(time_mode)
+    except Exception as e:
+        print(f"WARNING: Could not set FbxTime global time mode: {e}")
+
+    global_settings = scene.GetGlobalSettings()
+    try:
+        global_settings.SetTimeMode(time_mode)
+        if is_custom:
+            global_settings.SetCustomFrameRate(float(fps))
+    except Exception as e:
+        print(f"WARNING: Could not set scene global settings time mode: {e}")
 
     num_joints = len(parents)
     nodes = []
@@ -303,11 +369,25 @@ def export_fbx(filename, frames_data, parents, fps=30.0):
                 status = fbx.FbxStatus()
                 unroll_filter.Apply(rot_curve_node, status)
 
+    # Set the timeline (start/stop) span to match the recorded animation, at
+    # the resolved frame rate, so players reflect the correct duration/fps.
+    try:
+        time_span = fbx.FbxTimeSpan()
+        start_time = fbx.FbxTime()
+        start_time.SetSecondDouble(0.0)
+        stop_time = fbx.FbxTime()
+        stop_time.SetSecondDouble(max(0, len(frames_data) - 1) / fps)
+        time_span.SetStart(start_time)
+        time_span.SetStop(stop_time)
+        global_settings.SetTimelineDefaultTimeSpan(time_span)
+    except Exception as e:
+        print(f"WARNING: Could not set FBX timeline span: {e}")
+
     exporter = fbx.FbxExporter.Create(manager, "")
     if exporter.Initialize(filename, -1, manager.GetIOSettings()):
         exporter.Export(scene)
 
-    print(f"\n---> Successfully exported FBX to: {filename}")
+    print(f"\n---> Successfully exported FBX to: {filename} (fps={fps:.3f}, custom_mode={is_custom})")
 
 
 def extract_landmarks(landmark_list):
@@ -397,7 +477,7 @@ def compute_kinematics(pos_world, parents, offsets):
                 v_rest = np.array([offsets[c] for c in child_list])
                 v_curr = np.array([pos_world[c] - pos_world[i] for c in child_list])
                 valid_idx = (np.linalg.norm(v_rest, axis=1) > 1e-6) & (np.linalg.norm(v_curr, axis=1) > 1e-6)
-                
+
                 if sum(valid_idx) >= 2:
                     try:
                         # Fix: Handle branching joints correctly by aligning to ALL children
@@ -429,7 +509,7 @@ def compute_kinematics(pos_world, parents, offsets):
                 # Calculate correct local rotation: R_parent^-1 * R_world
                 r_p_inv = R.from_quat(quat_world[p]).inv()
                 quat_rel[i] = (r_p_inv * R.from_quat(quat_world[i])).as_quat()
-                
+
                 # Fix: Calculate standard mocap pos_rel by un-rotating the world-space delta
                 pos_rel[i] = r_p_inv.apply(pos_world[i] - pos_world[p])
             except Exception:
@@ -451,15 +531,18 @@ def fallback_missing_joints(current_pos, last_pos, start_idx, end_idx, attach_id
 
 
 def download_models(model_type):
+    os.makedirs(MODELS_DIR, exist_ok=True)
+
     pose_model = f"pose_landmarker_{model_type}.task"
     models = {
         pose_model: f"https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_{model_type}/float16/latest/{pose_model}",
         "hand_landmarker.task": "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task"
     }
     for filename, url in models.items():
-        if not os.path.exists(filename):
-            print(f"Downloading {filename}...")
-            urllib.request.urlretrieve(url, filename)
+        dest_path = os.path.join(MODELS_DIR, filename)
+        if not os.path.exists(dest_path):
+            print(f"Downloading {filename} to {dest_path}...")
+            urllib.request.urlretrieve(url, dest_path)
 
 def get_joint_color(j1, j2, is_2d=False):
     # Left indices: Pose odds 11..31, Hand 33..53
@@ -486,7 +569,7 @@ def get_joint_color(j1, j2, is_2d=False):
 
 def draw_landmarks_custom(image, landmarks, connections, offset=0):
     h, w, _ = image.shape
-    
+
     # Draw connections
     for start_idx, end_idx in connections:
         if start_idx < len(landmarks) and end_idx < len(landmarks):
@@ -494,7 +577,7 @@ def draw_landmarks_custom(image, landmarks, connections, offset=0):
             pt2 = (int(landmarks[end_idx].x * w), int(landmarks[end_idx].y * h))
             color = get_joint_color(start_idx + offset, end_idx + offset, is_2d=True)
             cv2.line(image, pt1, pt2, color, 2)
-            
+
     # Draw points
     for i, lm in enumerate(landmarks):
         pt = (int(lm.x * w), int(lm.y * h))
@@ -597,6 +680,8 @@ class VideoThread(QThread):
         self.max_visual_fps = max(1.0, float(args.display_fps))
         self.frame_mode = args.frame_mode
 
+        self.is_file_source = not str(self.args.source).isdigit()
+
         self._frame_lock = threading.Lock()
         self._stats_lock = threading.Lock()
 
@@ -607,6 +692,18 @@ class VideoThread(QThread):
         self._source_fps = 0.0
         self._skipped_frames = 0
 
+        # --- Playback control state (used for file sources) ---
+        self._playback_lock = threading.Lock()
+        self._play_event = threading.Event()
+        self._play_event.set()  # playing by default
+        self._is_paused = False
+        self._seek_request_sec = None  # pending seek target, in seconds
+        self._video_duration_sec = 0.0
+        self._current_pos_sec = 0.0
+        # Separate wake signal so that seeking while paused does NOT resume
+        # playback. _play_event is reserved exclusively for play/pause state.
+        self._seek_wake_event = threading.Event()
+
         motion_sender.config["ip"] = DEFAULT_OSC_IP
         motion_sender.config["port"] = DEFAULT_OSC_PORT
         self.osc_sender = motion_sender.OscSender(motion_sender.config)
@@ -614,21 +711,16 @@ class VideoThread(QThread):
         self.init_pose_landmarker()
 
         if self.args.hands:
-            options_hand = vision.HandLandmarkerOptions(
-                base_options=python.BaseOptions(model_asset_path='hand_landmarker.task'),
-                running_mode=vision.RunningMode.VIDEO,
-                num_hands=2,
-                min_hand_detection_confidence=0.2,
-                min_tracking_confidence=0.2
-            )
-            self.hand_landmarker = vision.HandLandmarker.create_from_options(options_hand)
+            self.init_hand_landmarker()
 
     def init_pose_landmarker(self):
         if self.pose_landmarker:
             self.pose_landmarker.close()
 
         options_pose = vision.PoseLandmarkerOptions(
-            base_options=python.BaseOptions(model_asset_path=f'pose_landmarker_{self.args.model}.task'),
+            base_options=python.BaseOptions(
+                model_asset_path=os.path.join(MODELS_DIR, f'pose_landmarker_{self.args.model}.task')
+            ),
             running_mode=vision.RunningMode.VIDEO,
             min_pose_detection_confidence=0.7,
             min_pose_presence_confidence=0.7,
@@ -636,6 +728,32 @@ class VideoThread(QThread):
         )
         self.pose_landmarker = vision.PoseLandmarker.create_from_options(options_pose)
         self.recreate_landmarker = False
+
+    def init_hand_landmarker(self):
+        if self.hand_landmarker:
+            self.hand_landmarker.close()
+
+        options_hand = vision.HandLandmarkerOptions(
+            base_options=python.BaseOptions(
+                model_asset_path=os.path.join(MODELS_DIR, 'hand_landmarker.task')
+            ),
+            running_mode=vision.RunningMode.VIDEO,
+            num_hands=2,
+            min_hand_detection_confidence=0.2,
+            min_tracking_confidence=0.2
+        )
+        self.hand_landmarker = vision.HandLandmarker.create_from_options(options_hand)
+
+    def _reset_landmarkers_for_seek(self):
+        """
+        MediaPipe's VIDEO-mode landmarkers require strictly monotonically
+        increasing timestamps across calls to detect_for_video(). Seeking
+        (backward, or forward past a big gap) breaks that guarantee, so the
+        landmarkers must be recreated whenever the playhead jumps.
+        """
+        self.init_pose_landmarker()
+        if self.args.hands:
+            self.init_hand_landmarker()
 
     def update_osc_settings(self, ip, port):
         self._new_osc_settings = (ip, port)
@@ -669,14 +787,87 @@ class VideoThread(QThread):
                 self._source_fps = source_fps
             self._skipped_frames += skipped_inc
 
-    def osc_send_tracked_data(self, tracked_data):
-        if not tracked_data:
+    def _get_export_fps(self):
+        """
+        Determine the FPS to use when exporting the recorded frames to FBX.
+
+        - "all" mode: use the video/camera source FPS (frames are processed
+          in order, one-to-one with the source), falling back to the measured
+          processing FPS if the source doesn't report a usable FPS (e.g. some
+          live cameras).
+        - "realtime" mode: use the average FPS actually achieved during pose
+          estimation, since frames are dropped to stay current and the
+          recorded sequence's effective playback rate matches the processing
+          rate, not the raw source rate.
+        """
+        proc_fps, source_fps, _ = self.get_stats()
+
+        if self.frame_mode == "all":
+            if source_fps and source_fps > 1e-3:
+                return source_fps
+            if proc_fps and proc_fps > 1e-3:
+                return proc_fps
+            return 30.0
+
+        if proc_fps and proc_fps > 1e-3:
+            return proc_fps
+        if source_fps and source_fps > 1e-3:
+            return source_fps
+        return 30.0
+
+    # ------------------------------------------------------------------
+    # Playback control (play / pause / seek) — used for video file sources
+    # ------------------------------------------------------------------
+
+    def is_playback_controllable(self):
+        return self.is_file_source
+
+    def pause_playback(self):
+        if not self.is_file_source:
             return
-        pose_data = tracked_data["skeleton_0"]["pose"]
-        self.osc_sender.send("/mocap/0/joint/pos_world", pose_data["pos_world"])
-        self.osc_sender.send("/mocap/0/joint/pos_local", pose_data["pos_rel"])
-        self.osc_sender.send("/mocap/0/joint/rot_world", pose_data["quat_world"])
-        self.osc_sender.send("/mocap/0/joint/rot_local", pose_data["quat_rel"])
+        self._is_paused = True
+        self._play_event.clear()
+
+    def resume_playback(self):
+        if not self.is_file_source:
+            return
+        self._is_paused = False
+        self._play_event.set()
+
+    def toggle_playback(self):
+        if self._is_paused:
+            self.resume_playback()
+        else:
+            self.pause_playback()
+
+    def seek_to_seconds(self, seconds):
+        if not self.is_file_source:
+            return
+        with self._playback_lock:
+            self._seek_request_sec = max(0.0, float(seconds))
+        # Wake the loop if it's blocked waiting in the pause-loop, WITHOUT
+        # touching _play_event — pause state must be preserved across seeks.
+        self._seek_wake_event.set()
+
+    def get_playback_state(self):
+        with self._playback_lock:
+            return self._is_paused, self._current_pos_sec, self._video_duration_sec
+
+    def _set_playback_position(self, pos_sec, duration_sec=None):
+        with self._playback_lock:
+            self._current_pos_sec = pos_sec
+            if duration_sec is not None:
+                self._video_duration_sec = duration_sec
+
+    def _consume_seek_request(self):
+        with self._playback_lock:
+            req = self._seek_request_sec
+            self._seek_request_sec = None
+            return req
+
+    def reset_calibration(self):
+        self.offsets_captured = np.array([p == -2 for p in self.parents], dtype=bool)
+        print("Rest pose calibration reset! Please hold a flat hand/T-Pose.")
 
     def set_tracking_confidence(self, conf):
         self.tracking_confidence = conf
@@ -688,10 +879,6 @@ class VideoThread(QThread):
         if self.pose_filter is not None:
             self.pose_filter.update_params(min_cutoff, beta)
 
-    def reset_calibration(self):
-        self.offsets_captured = np.array([p == -2 for p in self.parents], dtype=bool)
-        print("Rest pose calibration reset! Please hold a flat hand/T-Pose.")
-
     def _safe_timestamp_ms(self, ts_ms, last_timestamp_ms):
         if ts_ms <= last_timestamp_ms:
             return last_timestamp_ms + 1
@@ -700,6 +887,18 @@ class VideoThread(QThread):
     def _get_file_timestamp_ms(self, cap, last_timestamp_ms):
         ts_ms = int(cap.get(cv2.CAP_PROP_POS_MSEC))
         return self._safe_timestamp_ms(ts_ms, last_timestamp_ms)
+
+    def _apply_seek(self, cap, target_sec):
+        """
+        Move the capture's read position to target_sec and reset the pose/hand
+        landmarkers so their internal VIDEO-mode timestamp tracking (which
+        requires strictly monotonically increasing timestamps) doesn't choke
+        on the jump. Returns the new "last_timestamp_ms" baseline (-1) so the
+        next frame's timestamp starts clean.
+        """
+        cap.set(cv2.CAP_PROP_POS_MSEC, target_sec * 1000.0)
+        self._reset_landmarkers_for_seek()
+        return -1
 
     def _process_frame(self, frame_rgb, timestamp_ms, last_pos_world):
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
@@ -763,7 +962,7 @@ class VideoThread(QThread):
 
         t_sec = timestamp_ms / 1000.0
         filtered_pos_world = self.pose_filter(t_sec, current_pos_world)
-        
+
         with self._frame_lock:
             self._latest_pos_world = filtered_pos_world.copy()
 
@@ -825,6 +1024,15 @@ class VideoThread(QThread):
 
         return frame_rgb, current_pos_world
 
+    def osc_send_tracked_data(self, tracked_data):
+        if not tracked_data:
+            return
+        pose_data = tracked_data["skeleton_0"]["pose"]
+        self.osc_sender.send("/mocap/0/joint/pos_world", pose_data["pos_world"])
+        self.osc_sender.send("/mocap/0/joint/pos_local", pose_data["pos_rel"])
+        self.osc_sender.send("/mocap/0/joint/rot_world", pose_data["quat_world"])
+        self.osc_sender.send("/mocap/0/joint/rot_local", pose_data["quat_rel"])
+
     def run(self):
         source = int(self.args.source) if self.args.source.isdigit() else self.args.source
         cap = cv2.VideoCapture(source)
@@ -838,7 +1046,7 @@ class VideoThread(QThread):
         except Exception:
             pass
 
-        is_file = not str(self.args.source).isdigit()
+        is_file = self.is_file_source
         source_fps = 0.0
 
         if is_file:
@@ -851,6 +1059,15 @@ class VideoThread(QThread):
                 source_fps = 0.0
 
         self._set_stats(source_fps=source_fps)
+
+        # Determine total duration (seconds) for file sources, for the seek slider.
+        if is_file:
+            frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+            if frame_count and frame_count > 0 and source_fps > 1e-6:
+                duration_sec = frame_count / source_fps
+            else:
+                duration_sec = 0.0
+            self._set_playback_position(0.0, duration_sec=duration_sec)
 
         frame_period = 1.0 / source_fps if source_fps > 1e-6 else None
         next_frame_time = time.perf_counter() if (is_file and frame_period is not None) else None
@@ -883,10 +1100,46 @@ class VideoThread(QThread):
                     self._new_osc_settings = None
 
                 if is_file:
+                    # Apply any pending seek request before reading the next frame.
+                    seek_target = self._consume_seek_request()
+                    if seek_target is not None:
+                        last_timestamp_ms = self._apply_seek(cap, seek_target)
+                        prev_loop_time = time.perf_counter()
+                        if frame_period is not None:
+                            next_frame_time = time.perf_counter()
+
+                    # Block here (without busy-waiting) while paused, but keep
+                    # servicing seek requests / OSC setting updates / shutdown.
+                    # Pause state (self._play_event) is left untouched by seeking.
+                    while self._run_flag and not self._play_event.is_set():
+                        self._seek_wake_event.clear()
+                        # Wait until either resumed, a seek arrives, or timeout
+                        # (to remain responsive to shutdown requests).
+                        woke = self._play_event.wait(timeout=0.1)
+                        if not woke:
+                            self._seek_wake_event.wait(timeout=0.0)
+
+                        pending_seek = self._consume_seek_request()
+                        if pending_seek is not None:
+                            last_timestamp_ms = self._apply_seek(cap, pending_seek)
+                            success, frame = cap.read()
+                            if success:
+                                timestamp_ms = self._get_file_timestamp_ms(cap, last_timestamp_ms)
+                                last_timestamp_ms = timestamp_ms
+                                frame_rgb_preview = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                                frame_rgb_preview, last_pos_world = self._process_frame(
+                                    frame_rgb_preview, timestamp_ms, last_pos_world
+                                )
+                                self._store_latest_frame(frame_rgb_preview)
+                                self._set_playback_position(pending_seek)
+                    if not self._run_flag:
+                        break
+
                     success, frame = cap.read()
                     if not success:
                         break
                     timestamp_ms = self._get_file_timestamp_ms(cap, last_timestamp_ms)
+                    self._set_playback_position(timestamp_ms / 1000.0)
                 else:
                     if self.frame_mode == "all":
                         success, frame = cap.read()
@@ -963,6 +1216,8 @@ class VideoThread(QThread):
 
     def stop(self):
         self._run_flag = False
+        self._play_event.set()  # make sure a paused loop can exit
+        self._seek_wake_event.set()
         self.wait()
 
     def start_recording(self):
@@ -979,7 +1234,9 @@ class VideoThread(QThread):
         self.is_recording = False
         if len(self.recorded_frames) > 0:
             filename = datetime.datetime.now().strftime("mocap_%Y%m%d_%H%M%S.fbx")
-            export_fbx(filename, self.recorded_frames, self.parents)
+            export_fps = self._get_export_fps()
+            print(f"Exporting FBX with fps={export_fps:.3f} (frame_mode={self.frame_mode})")
+            export_fbx(filename, self.recorded_frames, self.parents, fps=export_fps)
             self.recorded_frames = []
 
 
@@ -997,7 +1254,7 @@ class MainWindow(QMainWindow):
 
         # Create a horizontal split for Video and 3D
         self.visuals_layout = QHBoxLayout()
-        
+
         self.image_label = QLabel(self)
         self.image_label.setAlignment(Qt.AlignCenter)
         self.image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -1008,7 +1265,7 @@ class MainWindow(QMainWindow):
         self.gl_widget = gl.GLViewWidget()
         self.visuals_layout.addWidget(self.gl_widget, stretch=1)
         self.gl_widget.setCameraPosition(distance=5, elevation=15, azimuth=45)
-        
+
         # Setup Grid
         grid = gl.GLGridItem(size=QtGui.QVector3D(10, 10, 0))
         grid.setSpacing(1, 1)
@@ -1018,10 +1275,10 @@ class MainWindow(QMainWindow):
         self.point_colors = np.zeros((num_nodes, 4))
         for i in range(num_nodes):
             self.point_colors[i] = get_joint_color(i, i, is_2d=False)
-            
+
         self.scatter = gl.GLScatterPlotItem(color=self.point_colors, size=10)
         self.gl_widget.addItem(self.scatter)
-        
+
         # Dynamically create lines based on the parsed hierarchy
         self.lines = []
         for i in range(1, num_nodes):
@@ -1081,6 +1338,35 @@ class MainWindow(QMainWindow):
         self.osc_layout.addStretch(1)
         self.layout.addLayout(self.osc_layout)
 
+        # --- Playback controls (Play/Pause + seek slider in seconds) ---
+        self.playback_layout = QHBoxLayout()
+        self.playback_layout.setContentsMargins(10, 5, 10, 0)
+
+        self.btn_play = QPushButton("Play")
+        self.btn_play.clicked.connect(self.on_play_clicked)
+        self.playback_layout.addWidget(self.btn_play)
+
+        self.btn_pause = QPushButton("Pause")
+        self.btn_pause.clicked.connect(self.on_pause_clicked)
+        self.playback_layout.addWidget(self.btn_pause)
+
+        self.playback_time_label = QLabel("0.0 s / 0.0 s")
+        self.playback_layout.addWidget(self.playback_time_label)
+
+        self.seek_slider = QSlider(Qt.Horizontal)
+        self.seek_slider.setRange(0, 0)
+        self.seek_slider.setSingleStep(1)  # 1 == 1 millisecond, see scale below
+        self.seek_slider.sliderPressed.connect(self.on_seek_pressed)
+        self.seek_slider.sliderReleased.connect(self.on_seek_released)
+        self.playback_layout.addWidget(self.seek_slider, stretch=1)
+
+        self.layout.addLayout(self.playback_layout)
+
+        self._user_is_seeking = False
+        # Internally the slider works in milliseconds for sub-second precision,
+        # but it is labeled/reported to the user in seconds.
+        self._slider_scale = 1000.0
+
         self.controls_layout = QHBoxLayout()
         self.controls_layout.setContentsMargins(10, 5, 10, 10)
 
@@ -1119,6 +1405,13 @@ class MainWindow(QMainWindow):
         self.btn_reset_calib.clicked.connect(self.thread.reset_calibration)
         self.thread.start()
 
+        # Playback controls only make sense for file sources; disable them
+        # outright for live camera input.
+        playback_enabled = self.thread.is_playback_controllable()
+        self.btn_play.setEnabled(playback_enabled)
+        self.btn_pause.setEnabled(playback_enabled)
+        self.seek_slider.setEnabled(playback_enabled)
+
         self.last_frame_seq = -1
         self.display_fps = 0.0
         self.prev_display_time = None
@@ -1154,18 +1447,18 @@ class MainWindow(QMainWindow):
             # --- 3D RENDERING ---
             pos_world = self.thread.get_latest_pos_world()
             if pos_world is not None:
-                # Map coordinate space. 
-                # Note: extract_landmarks already negates Y and Z. 
+                # Map coordinate space.
+                # Note: extract_landmarks already negates Y and Z.
                 # So pos_world Y is UP, and Z is CLOSER to camera.
                 # Pyqtgraph: X right, Y forward (depth), Z up
                 plot_pts = np.zeros_like(pos_world)
                 plot_pts[:, 0] = pos_world[:, 0]
-                plot_pts[:, 1] = -pos_world[:, 2] # Push Z 'into' screen 
+                plot_pts[:, 1] = -pos_world[:, 2] # Push Z 'into' screen
                 plot_pts[:, 2] = pos_world[:, 1]  # Y is already UP
 
                 # Move the character up so feet touch the grid (roughly)
                 # MediaPipe root is pelvis, usually around 0.9m above ground
-                plot_pts[:, 2] += 0.9 
+                plot_pts[:, 2] += 0.9
 
                 # Update scatter
                 self.scatter.setData(pos=plot_pts)
@@ -1189,6 +1482,45 @@ class MainWindow(QMainWindow):
             f"Proc FPS: {proc_fps:.1f} | View FPS: {self.display_fps:.1f} | "
             f"Src FPS: {src_fps:.1f} | Skipped: {skipped}"
         )
+
+        self.update_playback_ui()
+
+    def update_playback_ui(self):
+        if not self.thread.is_playback_controllable():
+            return
+
+        is_paused, pos_sec, duration_sec = self.thread.get_playback_state()
+
+        max_ms = int(round(duration_sec * self._slider_scale))
+        if self.seek_slider.maximum() != max_ms:
+            self.seek_slider.setRange(0, max(0, max_ms))
+
+        # Don't fight the user while they are dragging the handle.
+        if not self._user_is_seeking:
+            pos_ms = int(round(pos_sec * self._slider_scale))
+            if self.seek_slider.value() != pos_ms:
+                self.seek_slider.blockSignals(True)
+                self.seek_slider.setValue(min(pos_ms, self.seek_slider.maximum()))
+                self.seek_slider.blockSignals(False)
+
+        self.playback_time_label.setText(f"{pos_sec:.1f} s / {duration_sec:.1f} s")
+
+        self.btn_play.setEnabled(is_paused)
+        self.btn_pause.setEnabled(not is_paused)
+
+    def on_play_clicked(self):
+        self.thread.resume_playback()
+
+    def on_pause_clicked(self):
+        self.thread.pause_playback()
+
+    def on_seek_pressed(self):
+        self._user_is_seeking = True
+
+    def on_seek_released(self):
+        seconds = self.seek_slider.value() / self._slider_scale
+        self.thread.seek_to_seconds(seconds)
+        self._user_is_seeking = False
 
     def on_conf_changed(self, value):
         conf = value / 100.0

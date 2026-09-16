@@ -19,98 +19,25 @@ import motion_gui
 Setup Motion Player
 """
 
-
+"""
 motion_player.config["file_name"] = "data/mocap/Muriel_Take4_Blumen_Baile.fbx"
 motion_player.config["fps"] = 50
-
-
-"""
-motion_player.config = { 
-    "file_name": "../../../Data/Mocap/Xsens/Stocos/Solos/npz_60hz/Muriel_Take1_double_Bind.npz",
-    "topology_file_name": "data/configs/XSensLive_config.json",
-    "fps": 60
-    }
 """
 
 """
 motion_player.config = { 
-    "file_name": "../../../Data/Mocap/Captury/MotionBank/Solos/bvh_50hz/amber_movement_qualities.bvh",
-    "fps": 50
-    }
-"""
-
-"""
-motion_player.config = { 
-    "file_name": "../../../Data/Mocap/Zed/Daniel/Solos/fbx_30hz/daniel_zed_solo2.fbx",
-    "fps": 30
-    }
-"""
-
-"""
-motion_player.config = { 
-    "file_name": "../../../Data/Mocap/Qualisys/Stocos/Solos/fbx_50hz/polytopia_fullbody_take1.fbx",
-    "fps": 50
-    }
-"""
-
-"""
-motion_player.config = { 
-    "file_name": "../../../Data/Mocap/Xsens/Stocos/Solos/fbx_50hz/Muriel_Embodied_Machine_variation.fbx",
-    "fps": 50
-    }
-
-"""
-
-"""
-motion_player.config = { 
-    "file_name": "../../../Data/Mocap/Xsens/Stocos/Duets/fbx_50hz/Jason_Take3.fbx",
-    "fps": 50
-    }
-"""
-
-"""
-motion_player.config = { 
-    "file_name": "../../../Data/Mocap/Xsens/Stocos/Duets/fbx_50hz/Jason_Sherise_Take5.fbx",
-    "fps": 50
-    }
-"""
-
-"""
-motion_player.config = { 
-    "file_name": "../../../Data/Mocap/Pose3D/Stocos/Solos/Stocos_DoubleBind_MediaPipe.fbx",
-    "fps": 30
-    }
-"""
-
-"""
-motion_player.config = { 
-    "file_name": "E:/Data/mocap/Yurika/Mediapipe_v2/Classes/Rythm/Yurika_Rythm_Mediapipe_realtime.npz",
+    "file_name": "../../../../CAS_AISoundMotion_Data_2026/Mocap/Stocos/Solos/Mediapipe_npz_50fps/Muriel_Blumen_Baile.npz",
     "topology_file_name": "data/configs/Mediapipe_config.json",
-    "fps": 30
+    "fps": 50
     }
 """
 
-"""
 motion_player.config = { 
-    "file_name": "E:/Data/mocap/Yurika/Mediapipe_v2_fbx/Classes/Everyday/Yurika_Everyday_Mediapipe_all.fbx",
-    "fps": 30
+    "file_name": "../../../../CAS_AISoundMotion_Data_2026/Mocap/Stocos/Solos/Yolo_npz_50fps/Muriel_Blumen_Baile.npz",
+    "topology_file_name": "data/configs/Human36M_config.json",
+    "fps": 50
     }
-"""
 
-"""
-motion_player.config = { 
-    "file_name": "E:/Data/mocap/Yurika/Mediapipe_v2/Classes/Yurika_Test_Mediapipe_realtime.npz",
-    "topology_file_name": "data/configs/Mediapipe_config.json",
-    "fps": 30
-    }
-"""
-"""
-motion_player.config = { 
-    "file_name": "/Users/dbisig/Projects/Premiere/Software_Git2/MotionUtilities/SensorRecorder_v2/recordings/ExpressiveAliens_Bipet_Constant_SAC_v2_run17.npz",
-    "topology_file_name": "data/configs/ExpressiveAliens_Biped_v2.json",
-    "fps": 30
-    }
-"""
 
 player = motion_player.MotionPlayer(motion_player.config)
 
