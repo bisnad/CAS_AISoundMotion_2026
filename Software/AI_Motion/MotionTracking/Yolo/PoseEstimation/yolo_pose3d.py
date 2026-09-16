@@ -1396,7 +1396,13 @@ def main():
 
     app = QtWidgets.QApplication(sys.argv)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
+    
     print("Loading Models...")
     model_dir = "models"
     model_name = f"yolov8{args.yolo_model}-pose.pt"
