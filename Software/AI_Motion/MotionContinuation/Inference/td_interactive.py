@@ -25,22 +25,28 @@ from common import mocap_tools as mocap
 # -------------------------------------------------------------------------------------------------
 # Compute Unit
 # -------------------------------------------------------------------------------------------------
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-print('Using {} device'.format(device))
+
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+elif torch.backends.mps.is_available():
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
+print(f"Using {device} device")
 
 # -------------------------------------------------------------------------------------------------
 # Mocap Settings
 # -------------------------------------------------------------------------------------------------
 
-"""
+
 # Example 1: FBX
-mocap_file_path = "../../../Data/Mocap/Xsens/Stocos/Solos/fbx_50hz/"
-mocap_files = ["Muriel_Take1_double_Bind.fbx"]
+mocap_file_path = "data/mocap/"
+mocap_files = ["Muriel_Embodied_Machine.fbx.fbx"]
 mocap_topology_files = [None for _ in mocap_files]
 mocap_valid_time_ranges = [None for _ in mocap_files]
 mocap_pos_scale = 1.0
 mocap_fps = 50
-"""
+
 
 """
 # Example 2: BVH
@@ -62,6 +68,7 @@ mocap_pos_scale = 100.0
 mocap_fps = 30
 """
 
+"""
 # Example 3: NPZ
 mocap_file_path = "C:/Users/dbisig/Projects/Premiere/Data/Mocap/Xsens/Stocos/Solos/npz_60hz/"
 mocap_files = ["Muriel_Take1_double_Bind.npz"]
@@ -69,6 +76,7 @@ mocap_topology_files = [ "data/configs/XSensLive_config.json"] # only used for .
 mocap_valid_time_ranges = [ [ [ 10.6, 338.0 ] ] ]
 mocap_pos_scale = 100.0
 mocap_fps = 60
+"""
 
 train_root_trajectory = False
 

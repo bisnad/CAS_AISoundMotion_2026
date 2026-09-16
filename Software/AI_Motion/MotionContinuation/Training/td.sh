@@ -7,7 +7,7 @@ SCRIPT_PATH=$(cd "$(dirname "$0")"; pwd -P)
 cd "$SCRIPT_PATH"
 
 # Run the Python script
-uv run clustering_interactive.py
+uv run td.py
 
 # Exit shell
 exit 0

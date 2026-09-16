@@ -36,7 +36,12 @@ from common.rotation_utils_torch import RotationUtilsTorch as rot_to
 # Compute Unit
 # -------------------------------------------------------------------------------------------------
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+elif torch.backends.mps.is_available():
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
 print(f"Using {device} device")
 
 # -------------------------------------------------------------------------------------------------
@@ -44,15 +49,15 @@ print(f"Using {device} device")
 # -------------------------------------------------------------------------------------------------
 
 
-"""
+
 # Example 1: FBX
-mocap_file_path = "../../../Data/Mocap/Xsens/Stocos/Solos/fbx_50hz/"
-mocap_files = ["Muriel_Take1_double_Bind.fbx"]
-mocap_valid_time_ranges = [ [ [ 4.0, 328.0 ] ] ] # in seconds
+mocap_file_path = "data/mocap/"
+mocap_files = ["Muriel_Embodied_Machine.fbx"]
+mocap_valid_time_ranges = [ [ [ 3.0, 127.0 ] ] ] # in seconds
 mocap_topology_files = [None] # only used for .npz files
 mocap_pos_scale = 1.0
 mocap_fps = 50
-"""
+
 
 """
 # Example 2: BVH
@@ -64,7 +69,7 @@ mocap_pos_scale = 1.0
 mocap_fps = 50
 """
 
-
+"""
 # Example 3: NPZ
 mocap_file_path = "E:/data/mocap/Yurika/Mediapipe_v2/All/"
 mocap_files = ["Yurika_Everyday_Mediapipe_realtime.npz", "Yurika_Geometry_Mediapipe_realtime.npz", "Yurika_Rythm_Mediapipe_realtime.npz"]
@@ -72,7 +77,7 @@ mocap_valid_time_ranges = [ [ [ 3.0, 81.0 ] ], [ [ 2.0, 83.0 ] ], [ [ 3.0, 82.0 
 mocap_topology_files = [ "data/configs/Mediapipe_config.json", "data/configs/Mediapipe_config.json", "data/configs/Mediapipe_config.json"] # only used for .npz files
 mocap_pos_scale = 100.0
 mocap_fps = 30
-
+"""
 
 """
 # Example 3: NPZ
@@ -101,7 +106,7 @@ train_root_trajectory = False
 # Save Paths Settings
 # -------------------------------------------------------------------------------------------------
 
-save_path = "results_Muriel_Take1_DoubleBind_npz/"
+save_path = "results/Muriel_Embodied_Machine_fbx/"
 save_weights_path = save_path + "weights/"
 save_history_path = save_path + "history/"
 save_anims_path = save_path + "anims/"
