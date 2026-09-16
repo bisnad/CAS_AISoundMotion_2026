@@ -12,7 +12,7 @@ from ultralytics import YOLOWorld
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QPushButton, QLabel, QSizePolicy,
-    QLineEdit, QDoubleSpinBox, QSpinBox, QSlider
+    QLineEdit, QDoubleSpinBox, QSpinBox
 )
 from PyQt5.QtCore import QThread, pyqtSlot, Qt, QTimer
 from PyQt5.QtGui import QImage, QPixmap
@@ -140,8 +140,6 @@ class VideoThread(QThread):
         self.max_visual_fps = max(1.0, float(args.display_fps))
         self.frame_mode = args.frame_mode
 
-        self.is_file_source = not str(self.args.source).isdigit()
-
         self._frame_lock = threading.Lock()
         self._stats_lock = threading.Lock()
 
@@ -150,18 +148,6 @@ class VideoThread(QThread):
         self._processing_fps = 0.0
         self._source_fps = 0.0
         self._skipped_frames = 0
-
-        # --- Playback control state (used for file sources) ---
-        self._playback_lock = threading.Lock()
-        self._play_event = threading.Event()
-        self._play_event.set()  # playing by default
-        self._is_paused = False
-        self._seek_request_sec = None  # pending seek target, in seconds
-        self._video_duration_sec = 0.0
-        self._current_pos_sec = 0.0
-        # Separate wake signal so seeking while paused does NOT resume
-        # playback. _play_event is reserved exclusively for play/pause state.
-        self._seek_wake_event = threading.Event()
 
     def update_classes(self, new_classes_list):
         self._new_classes = new_classes_list
@@ -194,58 +180,6 @@ class VideoThread(QThread):
             if source_fps is not None:
                 self._source_fps = source_fps
             self._skipped_frames += skipped_inc
-
-    # ------------------------------------------------------------------
-    # Playback control (play / pause / seek) — used for video file sources
-    # ------------------------------------------------------------------
-
-    def is_playback_controllable(self):
-        return self.is_file_source
-
-    def pause_playback(self):
-        if not self.is_file_source:
-            return
-        self._is_paused = True
-        self._play_event.clear()
-
-    def resume_playback(self):
-        if not self.is_file_source:
-            return
-        self._is_paused = False
-        self._play_event.set()
-
-    def seek_to_seconds(self, seconds):
-        if not self.is_file_source:
-            return
-        with self._playback_lock:
-            self._seek_request_sec = max(0.0, float(seconds))
-        # Wake the loop if it's blocked in the pause-wait, WITHOUT touching
-        # _play_event — pause state must be preserved across seeks.
-        self._seek_wake_event.set()
-
-    def get_playback_state(self):
-        with self._playback_lock:
-            return self._is_paused, self._current_pos_sec, self._video_duration_sec
-
-    def _set_playback_position(self, pos_sec, duration_sec=None):
-        with self._playback_lock:
-            self._current_pos_sec = pos_sec
-            if duration_sec is not None:
-                self._video_duration_sec = duration_sec
-
-    def _consume_seek_request(self):
-        with self._playback_lock:
-            req = self._seek_request_sec
-            self._seek_request_sec = None
-            return req
-
-    def _apply_seek(self, cap, target_sec):
-        """
-        Move the capture's read position to target_sec. Unlike the
-        MediaPipe pipeline, YOLO-World inference is stateless per frame, so
-        no model/tracker reset is required after a seek.
-        """
-        cap.set(cv2.CAP_PROP_POS_MSEC, target_sec * 1000.0)
 
     def _process_frame(self, frame):
         with torch.no_grad():
@@ -288,7 +222,7 @@ class VideoThread(QThread):
         except Exception:
             pass
 
-        is_file = self.is_file_source
+        is_file = not str(self.args.source).isdigit()
         source_fps = 0.0
 
         if is_file:
@@ -301,15 +235,6 @@ class VideoThread(QThread):
                 source_fps = 0.0
 
         self._set_stats(source_fps=source_fps)
-
-        # Determine total duration (seconds) for file sources, for the seek slider.
-        if is_file:
-            frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
-            if frame_count and frame_count > 0 and source_fps > 1e-6:
-                duration_sec = frame_count / source_fps
-            else:
-                duration_sec = 0.0
-            self._set_playback_position(0.0, duration_sec=duration_sec)
 
         frame_period = 1.0 / source_fps if source_fps > 1e-6 else None
         next_frame_time = time.perf_counter() if (is_file and frame_period is not None) else None
@@ -341,40 +266,9 @@ class VideoThread(QThread):
                     self._new_osc_settings = None
 
                 if is_file:
-                    # Apply any pending seek request before reading the next frame.
-                    seek_target = self._consume_seek_request()
-                    if seek_target is not None:
-                        self._apply_seek(cap, seek_target)
-                        prev_loop_time = time.perf_counter()
-                        if frame_period is not None:
-                            next_frame_time = time.perf_counter()
-
-                    # Block here (without busy-waiting) while paused, but keep
-                    # servicing seek requests / class & OSC updates / shutdown.
-                    # Pause state (self._play_event) is left untouched by seeking.
-                    while self._run_flag and not self._play_event.is_set():
-                        self._seek_wake_event.clear()
-                        woke = self._play_event.wait(timeout=0.1)
-                        if not woke:
-                            self._seek_wake_event.wait(timeout=0.0)
-
-                        pending_seek = self._consume_seek_request()
-                        if pending_seek is not None:
-                            self._apply_seek(cap, pending_seek)
-                            success, frame = cap.read()
-                            if success:
-                                results = self._process_frame(frame)
-                                annotated_frame = results.plot()
-                                annotated_frame_rgb = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
-                                self._store_latest_frame(annotated_frame_rgb)
-                                self._set_playback_position(pending_seek)
-                    if not self._run_flag:
-                        break
-
                     success, frame = cap.read()
                     if not success:
                         break
-                    self._set_playback_position(cap.get(cv2.CAP_PROP_POS_MSEC) / 1000.0)
                 else:
                     if self.frame_mode == "all":
                         success, frame = cap.read()
@@ -443,8 +337,6 @@ class VideoThread(QThread):
 
     def stop(self):
         self._run_flag = False
-        self._play_event.set()  # make sure a paused loop can exit
-        self._seek_wake_event.set()
         self.wait()
 
 
@@ -456,7 +348,7 @@ class MainWindow(QMainWindow):
     def __init__(self, args):
         super().__init__()
         self.setWindowTitle("YOLO-World Custom Object Detection")
-        self.resize(900, 720)
+        self.resize(900, 680)
 
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
@@ -517,31 +409,6 @@ class MainWindow(QMainWindow):
         self.settings_layout.addStretch(1)
         self.layout.addLayout(self.settings_layout)
 
-        # --- Playback controls (Play/Pause + seek slider in seconds) ---
-        self.playback_layout = QHBoxLayout()
-        self.playback_layout.setContentsMargins(10, 5, 10, 0)
-
-        self.btn_play = QPushButton("Play")
-        self.btn_play.clicked.connect(self.on_play_clicked)
-        self.playback_layout.addWidget(self.btn_play)
-
-        self.btn_pause = QPushButton("Pause")
-        self.btn_pause.clicked.connect(self.on_pause_clicked)
-        self.playback_layout.addWidget(self.btn_pause)
-
-        self.playback_time_label = QLabel("0.0 s / 0.0 s")
-        self.playback_layout.addWidget(self.playback_time_label)
-
-        self._slider_scale = 1000.0  # slider works in ms internally, displayed in seconds
-        self._user_is_seeking = False
-        self.seek_slider = QSlider(Qt.Horizontal)
-        self.seek_slider.setRange(0, 0)
-        self.seek_slider.sliderPressed.connect(self.on_seek_pressed)
-        self.seek_slider.sliderReleased.connect(self.on_seek_released)
-        self.playback_layout.addWidget(self.seek_slider, stretch=1)
-
-        self.layout.addLayout(self.playback_layout)
-
         self.controls_layout = QHBoxLayout()
         self.controls_layout.setContentsMargins(10, 5, 10, 10)
 
@@ -560,13 +427,6 @@ class MainWindow(QMainWindow):
 
         self.thread = VideoThread(args)
         self.thread.start()
-
-        # Playback controls only make sense for file sources; disable them
-        # outright for live camera input.
-        playback_enabled = self.thread.is_playback_controllable()
-        self.btn_play.setEnabled(playback_enabled)
-        self.btn_pause.setEnabled(playback_enabled)
-        self.seek_slider.setEnabled(playback_enabled)
 
         self.last_frame_seq = -1
         self.display_fps = 0.0
@@ -614,45 +474,6 @@ class MainWindow(QMainWindow):
             f"Proc FPS: {proc_fps:.1f} | View FPS: {self.display_fps:.1f} | "
             f"Src FPS: {src_fps:.1f} | Skipped: {skipped}"
         )
-
-        self.update_playback_ui()
-
-    def update_playback_ui(self):
-        if not self.thread.is_playback_controllable():
-            return
-
-        is_paused, pos_sec, duration_sec = self.thread.get_playback_state()
-
-        max_ms = int(round(duration_sec * self._slider_scale))
-        if self.seek_slider.maximum() != max_ms:
-            self.seek_slider.setRange(0, max(0, max_ms))
-
-        # Don't fight the user while they are dragging the handle.
-        if not self._user_is_seeking:
-            pos_ms = int(round(pos_sec * self._slider_scale))
-            if self.seek_slider.value() != pos_ms:
-                self.seek_slider.blockSignals(True)
-                self.seek_slider.setValue(min(pos_ms, self.seek_slider.maximum()))
-                self.seek_slider.blockSignals(False)
-
-        self.playback_time_label.setText(f"{pos_sec:.1f} s / {duration_sec:.1f} s")
-
-        self.btn_play.setEnabled(is_paused)
-        self.btn_pause.setEnabled(not is_paused)
-
-    def on_play_clicked(self):
-        self.thread.resume_playback()
-
-    def on_pause_clicked(self):
-        self.thread.pause_playback()
-
-    def on_seek_pressed(self):
-        self._user_is_seeking = True
-
-    def on_seek_released(self):
-        seconds = self.seek_slider.value() / self._slider_scale
-        self.thread.seek_to_seconds(seconds)
-        self._user_is_seeking = False
 
     def on_update_classes(self):
         text = self.class_input.text()
