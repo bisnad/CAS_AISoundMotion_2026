@@ -29,17 +29,21 @@ from vocos import Vocos
 # Compute Unit
 # -------------------------------------------------------------------------------------------------
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-print('Using {} device'.format(device))
+if torch.cuda.is_available():
+    device = 'cuda'
+elif torch.backends.mps.is_available():
+    device = 'mps'
+else:
+    device = 'cpu'
+print(f'Using {device} device')
 
 # -------------------------------------------------------------------------------------------------
 # Audio Settings
 # -------------------------------------------------------------------------------------------------
 
-audio_data_path = "E:/Data/audio/stocos/MovementSonification/"
+audio_data_path = "data/audio/"
 audio_data_files = ["Take1__double_Bind_HQ_audio_crop_48khz.wav",
-                    "Take2_Hibr_II_HQ_audio_crop_48khz.wav",
-                    "Take3_RO_37-4-1_HQ_audio_crop_48khz.wav"]
+                    "Take2_Hibr_II_HQ_audio_crop_48khz.wav"]
 audio_sample_rate = 48000 # numer of audio samples per sec
 
 audio_window_length_vocos = 65280 # 256 mel frames worth of audio
@@ -68,8 +72,8 @@ vae_dense_layer_sizes = [ 512 ]
 # Training Settings
 # -------------------------------------------------------------------------------------------------
 
-encoder_weights_file = "../../Training/results/vae_cnn_Stocos_ld32/weights/encoder_weights_epoch_400"
-decoder_weights_file = "../../Training/results/vae_cnn_Stocos_ld32/weights/decoder_weights_epoch_400"
+encoder_weights_file = "data/models/vae_cnn_Stocos_ld32/encoder_weights_epoch_400"
+decoder_weights_file = "data/models/vae_cnn_Stocos_ld32/decoder_weights_epoch_400"
 
 # -------------------------------------------------------------------------------------------------
 # Fix Seeds

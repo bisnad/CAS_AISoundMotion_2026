@@ -12,8 +12,14 @@ import torch
 from diffusers import AudioLDM2Pipeline
 import simpleaudio as sa
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-print('Using {} device'.format(device))
+if torch.cuda.is_available():
+    device = 'cuda'
+elif torch.backends.mps.is_available():
+    device = 'mps'
+else:
+    device = 'cpu'
+print(f'Using {device} device')
+
 
 repo_id = "cvssp/audioldm2"
 #repo_id = "cvssp/audioldm2-large"
@@ -22,6 +28,19 @@ repo_id = "cvssp/audioldm2"
 #pipe = AudioLDM2Pipeline.from_pretrained(repo_id, torch_dtype=torch.float32)
 pipe = AudioLDM2Pipeline.from_pretrained(repo_id, torch_dtype=torch.float32, revision="refs/pr/5")
 pipe = pipe.to(device)
+
+# Apple MPS cannot handle the large Conv1d output used by the HiFi-GAN vocoder.
+# Keep diffusion on MPS, but run waveform decoding on the CPU.
+if device == "mps":
+    pipe.vocoder.to("cpu")
+
+    def mel_spectrogram_to_waveform(mel_spectrogram):
+        if mel_spectrogram.dim() == 4:
+            mel_spectrogram = mel_spectrogram.squeeze(1)
+        waveform = pipe.vocoder(mel_spectrogram.to("cpu"))
+        return waveform.cpu().float()
+
+    pipe.mel_spectrogram_to_waveform = mel_spectrogram_to_waveform
 
 """
 Using AudioLDM2 for Sound Generation

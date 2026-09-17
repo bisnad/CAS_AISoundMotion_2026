@@ -139,7 +139,7 @@ save_weights = True
 save_weights_interval = 50
 
 load_weights = False
-load_weights_file = "results_Yurika_MotionClasses_Mediapipe_npz/weights/vae_weight_epoch_200.pt"
+load_weights_file = "results/Muriel_Blumen_RO_fbx/weights/vae_weight_epoch_200.pt"
 
 # -------------------------------------------------------------------------------------------------
 # Render Settings

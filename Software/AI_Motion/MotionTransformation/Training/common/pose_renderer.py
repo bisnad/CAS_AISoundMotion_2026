@@ -8,36 +8,17 @@ from PIL import Image
 class PoseRenderer:
     def __init__(self, edge_data):
         self.edge_data = edge_data
-    
-    def _fig2data (self, fig):
-        """
-        @brief Convert a Matplotlib figure to a 4D numpy array with RGBA channels and return it
-        @param fig a matplotlib figure
-        @return a numpy 3D array of RGBA values
-        """
-        # draw the renderer
+
+    def _fig2data(self, fig):
         fig.canvas.draw()
- 
-        # Get the RGBA buffer from the figure
-        w, h = fig.canvas.get_width_height()
-        
-        # FIXED: replaced deprecated np.fromstring with np.frombuffer, and tostring_argb with buffer_rgba
         buf = np.frombuffer(fig.canvas.buffer_rgba(), dtype=np.uint8)
-        buf.shape = (w, h, 4)
- 
+        w, h = fig.canvas.get_width_height(physical=True)
+        buf = buf.reshape((h, w, 4))
         return buf
-    
-    def _fig2img (self, fig):
-        """
-        @brief Convert a Matplotlib figure to a PIL Image in RGBA format and return it
-        @param fig a matplotlib figure
-        @return a Python Imaging Library ( PIL ) image
-        """
-        # put the figure pixmap into a numpy array
+
+    def _fig2img(self, fig):
         buf = self._fig2data(fig)
-        w, h, d = buf.shape
-        
-        # FIXED: replaced deprecated tostring() with tobytes()
+        h, w, d = buf.shape
         return Image.frombytes("RGBA", (w, h), buf.tobytes())
     
     def create_pose_image(self, pose, axis_min, axis_max, rot_elev, rot_azi, line_width, image_xinch, image_yinch):

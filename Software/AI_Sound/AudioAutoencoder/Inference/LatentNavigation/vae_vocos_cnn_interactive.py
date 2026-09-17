@@ -635,8 +635,14 @@ class ScatterPlotApp(QtWidgets.QMainWindow):
         self.play_scatter.setData( [ play_p['pos'][0] ], [ play_p['pos'][1] ] )
 
 # ========== APP ENTRYPOINT ==========
-if __name__ == "__main__":
+def main():
+    """Create and run the Qt application."""
     app = QtWidgets.QApplication(sys.argv)
     main = ScatterPlotApp(Z_tsne, inter_audio_encodings)
     main.show()
+    print("Qt window shown; entering event loop")
     sys.exit(app.exec_())
+
+
+if __name__ == "__main__":
+    main()
