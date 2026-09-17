@@ -1,3 +1,5 @@
 {
-    "python.defaultInterpreterPath": "${workspaceFolder}/../../../.venv"
+    "python.defaultInterpreterPath": "${workspaceFolder}/../../../.venv",
+    "python.REPL.sendToNativeREPL": true,
+    "python.terminal.executeInFileDir": true
 }

@@ -633,7 +633,8 @@ osc_handler.map("/synth/encodingoffset", osc_setEncodingOffset)
 """
 Execution
 """
-if __name__ == "__main__":
+
+def main():
     # Start OSC
     osc_server_instance = osc_server.ThreadingOSCUDPServer((osc_receive_ip, osc_receive_port), osc_handler)
     osc_thread = threading.Thread(target=osc_server_instance.serve_forever, daemon=True)
@@ -644,3 +645,6 @@ if __name__ == "__main__":
     gui = AudioAutoencoderGUI()
     gui.show()
     sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    main()
