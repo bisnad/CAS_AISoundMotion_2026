@@ -94,11 +94,11 @@ train_root_trajectory = False
 # Save Paths Settings
 # -------------------------------------------------------------------------------------------------
 
-save_path = "results/Muriel_Blumen_RO_fbx/"
+save_path = "results/Muriel_Blumen_RO_fbx_5/"
 save_weights_path = os.path.join(save_path, "weights/")
 save_history_path = os.path.join(save_path, "history/")
 save_anims_path = os.path.join(save_path, "anims/")
-save_anim_formats = ["gif", "npz"] 
+save_anim_formats = ["gif", "fbx"] 
 
 os.makedirs(save_weights_path, exist_ok=True)
 os.makedirs(save_history_path, exist_ok=True)
@@ -110,9 +110,9 @@ os.makedirs(save_anims_path, exist_ok=True)
 
 latent_dim = 32
 ae_rnn_layer_count = 2
-ae_rnn_layer_size = 256
-ae_dense_layer_sizes = [256]
-ae_dropout = 0.3
+ae_rnn_layer_size = 512
+ae_dense_layer_sizes = [512]
+ae_dropout = 0.1
 
 # -------------------------------------------------------------------------------------------------
 # Training Settings
@@ -124,10 +124,10 @@ test_percentage = 0.1
 batch_size = 128
 epochs = 200
 
-ae_learning_rate = 1e-4
+ae_learning_rate = 1e-3
 learning_rate_cycle_decay = 0.5
 
-pos_rec_loss_scale = 0.1
+pos_rec_loss_scale = 0.9
 rot_rec_loss_scale = 1.0
 
 target_beta = 0.25
@@ -593,7 +593,7 @@ def vae_train_step(y, beta):
 
     optimizer.zero_grad()
     loss.backward()
-    torch.nn.utils.clip_grad_norm_(vae.parameters(), 0.01)
+    torch.nn.utils.clip_grad_norm_(vae.parameters(), 1.0)
     optimizer.step()
 
     return loss, pos_loss, rot_loss, kld
