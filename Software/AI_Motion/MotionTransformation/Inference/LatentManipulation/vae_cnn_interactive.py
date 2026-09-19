@@ -39,46 +39,23 @@ from common import mocap_tools as mocap
 # Compute Unit
 # -------------------------------------------------------------------------------------------------
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-print('Using {} device'.format(device))
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+elif torch.backends.mps.is_available():
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
+print(f"Using {device} device")
 
 # -------------------------------------------------------------------------------------------------
 # Mocap Settings
 # -------------------------------------------------------------------------------------------------
 
-"""
-mocap_file_path = "data/mocap/"
-mocap_files = ["Muriel_Take1_double_Bind.fbx"]
-mocap_pos_scale = 1.0
-mocap_fps = 50
-mocap_root_trajectory = False
-"""
-
-"""
 # Example 1: FBX
-mocap_file_path = "../../../Data/Mocap/Xsens/Stocos/Solos/fbx_50hz/"
-mocap_files = ["Muriel_Take1_double_Bind.fbx"]
+mocap_file_path = "data/mocap/"
+mocap_files = ["Muriel_Blumen_Baile.fbx", "Muriel_RO_37-4-1.fbx"]
 mocap_pos_scale = 1.0
 mocap_fps = 50
-mocap_root_trajectory = False
-"""
-
-"""
-# Example 2: BVH
-mocap_file_path = "../../../Data/Mocap/Xsens/Stocos/Solos/bvh_50hz/"
-mocap_files = ["Muriel_Take1_double_Bind.bvh"]
-mocap_pos_scale = 1.0
-mocap_fps = 50
-mocap_root_trajectory = False
-"""
-
-
-# Example 3: NPZ
-mocap_file_path = "E:/data/mocap/Yurika/Mediapipe_v2/All/"
-mocap_files = ["Yurika_Geometry_Mediapipe_realtime.npz"]
-mocap_topology_files = ["data/configs/Mediapipe_config.json"]
-mocap_pos_scale = 100.0
-mocap_fps = 30
 mocap_root_trajectory = False
 
 # -------------------------------------------------------------------------------------------------

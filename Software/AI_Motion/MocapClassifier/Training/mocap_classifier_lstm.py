@@ -45,6 +45,7 @@ print(f"Using {device} device")
 Mocap Settings
 """
 
+"""
 # XSens NPZ
 mocap_data_file_path = "E:/Data/mocap/ick3/Solos/Ricardo/Xsens/npz/Classes"
 mocap_data_file_extensions = [".npz"] 
@@ -57,21 +58,20 @@ mocap_data_window_length = 90
 mocap_data_window_offset = 15
 mocap_pos_scale = 1.0
 mocap_stats_load = False
-
 """
+
 # Mediapipe NPZ
-mocap_data_file_path = "E:/Data/mocap/Yurika/Mediapipe_v2/Classes"
+mocap_data_file_path = "data/mocap/classes"
 mocap_data_file_extensions = [".npz"] 
 mocap_topology_file = "data/configs/Mediapipe_config.json"
-#mocap_data_types = ["pos", "rot", "vel_pos", "vel_rot", "acc_pos", "acc_rot"]
 mocap_data_types = ["rot", "vel_rot", "acc_rot"]
-mocap_fps = 30
+mocap_fps = 25
 mocap_joint_indices = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32] # skeleton without face, hands
-mocap_data_window_length = 30
-mocap_data_window_offset = 10
+mocap_data_window_length = 35
+mocap_data_window_offset = 15
 mocap_pos_scale = 100.0
 mocap_stats_load = False
-"""
+
 
 """
 # Mediapipe FBX
@@ -110,8 +110,8 @@ Model Settings
 class_count = None
 model_input_dim = None
 model_hidden_dim = 64
-model_layer_count = 2
-model_dropout = 0.5
+model_layer_count = 1
+model_dropout = 0.3
 
 """
 Training Settings
@@ -121,17 +121,17 @@ test_percentage = 0.2
 batch_size = 128
 epochs = 200
 learning_rate = 1e-4
-label_smoothing = 0.4
-weight_decay = 1e-3
+label_smoothing = 0.3
+weight_decay = 5e-3
 load_weights = False
 save_weights = True
-model_weights_file = "results_lstm/weights/classifier_epoch_200.pth"
+model_weights_file = "results/Stocos_Muriel_XSens_npz/weights/classifier_epoch_200.pth"
 
 """
 Save Paths Settings
 """
 
-save_path = "results_ICK_Ricardo_XSens_npz"
+save_path = "results/Stocos_Muriel_XSens_npz"
 save_stats_path = save_path + "/stats"
 save_history_path = save_path + "/history"
 save_weights_path = save_path + "/weights"

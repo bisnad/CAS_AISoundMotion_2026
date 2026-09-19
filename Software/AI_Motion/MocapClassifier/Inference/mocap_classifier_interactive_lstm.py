@@ -45,6 +45,16 @@ elif torch.backends.mps.is_available():
 else:
     device = torch.device("cpu")
 
+# Mediapipe NPZ
+mocap_data_file_path = "data/mocap/classes"
+mocap_data_file_extensions = [".npz"] 
+mocap_topology_file = "data/configs/Mediapipe_config.json"
+mocap_data_types = ["rot", "vel_rot", "acc_rot"]
+mocap_joint_indices = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32] # skeleton without face, hands
+mocap_data_window_length = 30
+mocap_pos_scale = 100.0
+
+"""
 # XSens NPZ
 mocap_data_file_path = "E:/Data/mocap/ick3/Solos/Ricardo/Xsens/npz/Classes"
 #mocap_data_types = ["pos", "rot", "vel_pos", "vel_rot", "acc_pos", "acc_rot"]
@@ -52,10 +62,11 @@ mocap_data_types = ["rot", "vel_rot", "acc_rot"]
 mocap_joint_indices = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22] # skeleton without root
 mocap_data_window_length = 90
 mocap_pos_scale = 1.0
+"""
 
 """
 # Mediapipe NPZ
-mocap_data_file_path = "E:/Data/mocap/Yurika/Mediapipe_v2/Classes"
+mocap_data_file_path = "data/weights/E:/Data/mocap/Yurika/Mediapipe_v2/Classes"
 #mocap_data_types = ["pos", "rot", "vel_pos", "vel_rot", "acc_pos", "acc_rot"]
 mocap_data_types = ["rot", "vel_rot", "acc_rot"]
 mocap_joint_indices = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
@@ -98,20 +109,13 @@ num_features = len(mocap_joint_indices) * features_per_joint
 
 # Model Settings (Matching training script)
 model_hidden_dim = 64
-model_layer_count = 2
-model_dropout = 0.5 # Note: Dropout is disabled during inference via self.classifier.eval()
+model_layer_count = 1
+model_dropout = 0.3
 
 # Training Settings / Paths (Aligned with Training Script output paths)
 
-save_stats_path = "../MocapClassifier/results_ICK_Ricardo_XSens_npz/stats"
-model_weights_file = "../MocapClassifier/results_ICK_Ricardo_XSens_npz/weights/classifier_weights_epoch_200.pth"
-
-#save_stats_path = "../MocapClassifier_v2/results_Yurika_Mediapipe_npz/stats"
-#model_weights_file = "../MocapClassifier_v2/results_Yurika_Mediapipe_npz/weights/classifier_weights_epoch_200.pth"
-
-#save_stats_path = "../MocapClassifier_v2/results_Yurika_Mediapipe_fbx/stats"
-#model_weights_file = "../MocapClassifier_v2/results_Yurika_Mediapipe_fbx/weights/classifier_weights_epoch_200.pth"
-
+save_stats_path = "data/results/stats"
+model_weights_file = "data/results/weights/classifier_weights_epoch_200.pth"
 
 # OSC Settings
 osc_receive_ip = "0.0.0.0"

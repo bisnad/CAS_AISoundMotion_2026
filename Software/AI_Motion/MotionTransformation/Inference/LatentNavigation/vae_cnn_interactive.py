@@ -32,8 +32,13 @@ from PyQt5 import QtWidgets
 # Compute Unit
 # -------------------------------------------------------------------------------------------------
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-print('Using {} device'.format(device))
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+elif torch.backends.mps.is_available():
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
+print(f"Using {device} device")
 
 # -------------------------------------------------------------------------------------------------
 # Mocap Settings

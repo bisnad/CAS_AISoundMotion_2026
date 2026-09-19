@@ -108,7 +108,7 @@ os.makedirs(save_anims_path, exist_ok=True)
 # Model Settings
 # -------------------------------------------------------------------------------------------------
 
-latent_dim = 32
+latent_dim = 16
 ae_rnn_layer_count = 2
 ae_rnn_layer_size = 512
 ae_dense_layer_sizes = [512]
