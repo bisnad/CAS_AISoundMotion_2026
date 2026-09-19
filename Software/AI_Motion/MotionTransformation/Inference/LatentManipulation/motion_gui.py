@@ -34,8 +34,8 @@ class PoseCanvasUpdater(QtCore.QObject):
 
 class CustomGLViewWidget(gl.GLViewWidget):
     def __init__(self, *args, **kwargs):
+        kwargs.setdefault('rotationMethod', 'quaternion')
         super().__init__(*args, **kwargs)
-        self.opts['rotationMethod'] = 'quaternion'
 
     def mouseMoveEvent(self, ev):
         lpos = ev.position() if hasattr(ev, 'position') else ev.localPos()

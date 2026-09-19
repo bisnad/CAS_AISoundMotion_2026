@@ -48,52 +48,33 @@ print(f"Using {device} device")
 # Mocap Settings
 # -------------------------------------------------------------------------------------------------
 
-# Example 1: FBX
+"""
+# Example: FBX
 mocap_file_path = "data/mocap/"
 mocap_files = ["Muriel_Blumen_Baile.fbx", "Muriel_RO_37-4-1.fbx"]
 mocap_valid_time_ranges = [None] * len(mocap_files) # in seconds
 mocap_topology_files = [None] * len(mocap_files)  # only used for .npz files
 mocap_pos_scale = 1.0
 mocap_fps = 50
-
-"""
-# Example 1: FBX
-mocap_file_path = "../../../Data/Mocap/Xsens/Stocos/Solos/fbx_50hz/"
-mocap_files = ["Muriel_Take1_double_Bind.fbx"]
-mocap_valid_time_ranges = [None] # in seconds
-mocap_topology_files = [None] # only used for .npz files
-mocap_pos_scale = 1.0
-mocap_fps = 50
-"""
-
-"""
-# Example 2: BVH
-mocap_file_path = "../../../Data/Mocap/Xsens/Stocos/Solos/bvh_50hz/"
-mocap_files = ["Muriel_Take1_double_Bind.bvh"]
-mocap_valid_time_ranges = [None] # in seconds
-mocap_topology_files = [None] # only used for .npz files
-mocap_pos_scale = 1.0
-mocap_fps = 50
-"""
-
-"""
-# Example 3: NPZ
-mocap_file_path = "E:/data/mocap/Yurika/Mediapipe_v2/All/"
-mocap_files = ["Yurika_Everyday_Mediapipe_realtime.npz", "Yurika_Geometry_Mediapipe_realtime.npz", "Yurika_Rythm_Mediapipe_realtime.npz"]
-mocap_valid_time_ranges = [ None, None, None ] # in seconds
-mocap_topology_files = [ "data/configs/Mediapipe_config.json", "data/configs/Mediapipe_config.json", "data/configs/Mediapipe_config.json"] # only used for .npz files
-mocap_pos_scale = 100.0
-mocap_fps = 30
-"""
-
 mocap_loss_weights_file = None
+train_root_trajectory = False
+"""
+
+# Example: NPZ
+mocap_file_path = "data/mocap/"
+mocap_files = ["Muriel_Fluidity_FullBody.npz", "Muriel_Particles_FullBody.npz", "Muriel_Staccato_FullBody.npz"]
+mocap_valid_time_ranges = [None] * len(mocap_files) # in seconds
+mocap_topology_files = ["data/configs/Mediapipe_config.json"] * len(mocap_files) # only used for .npz files
+mocap_pos_scale = 100.0
+mocap_fps = 25
+mocap_loss_weights_file = "data/configs/Mediapipe_joint_loss_weights.json"
 train_root_trajectory = False
 
 # -------------------------------------------------------------------------------------------------
 # Save Paths Settings
 # -------------------------------------------------------------------------------------------------
 
-save_path = "results/Muriel_Blumen_RO_fbx_5/"
+save_path = "results/Muriel_Blumen_RO_npz_ld16/"
 save_weights_path = os.path.join(save_path, "weights/")
 save_history_path = os.path.join(save_path, "history/")
 save_anims_path = os.path.join(save_path, "anims/")

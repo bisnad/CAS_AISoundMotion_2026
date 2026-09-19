@@ -59,7 +59,7 @@ class MotionMapping():
                 std = torch.exp(0.5 * logvar)
                 encoded_batch = mu + std * torch.randn_like(std)
 
-                print("encoded_batch s ", encoded_batch.shape)
+                #print("encoded_batch s ", encoded_batch.shape)
                 
                 motion_encodings.append(encoded_batch.detach().cpu())
 

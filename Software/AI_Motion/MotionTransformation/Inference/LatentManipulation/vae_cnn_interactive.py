@@ -54,9 +54,20 @@ print(f"Using {device} device")
 # Example 1: FBX
 mocap_file_path = "data/mocap/"
 mocap_files = ["Muriel_Blumen_Baile.fbx", "Muriel_RO_37-4-1.fbx"]
+mocap_topology_files = [None, None]
 mocap_pos_scale = 1.0
 mocap_fps = 50
 mocap_root_trajectory = False
+
+"""
+# Example 3: NPZ
+mocap_file_path = "E:/data/mocap/Yurika/Mediapipe_v2/All/"
+mocap_files = ["Yurika_Geometry_Mediapipe_realtime.npz"]
+mocap_topology_files = ["data/configs/Mediapipe_config.json"]
+mocap_pos_scale = 100.0
+mocap_fps = 30
+mocap_root_trajectory = False
+"""
 
 # -------------------------------------------------------------------------------------------------
 # Model Settings
@@ -73,10 +84,7 @@ vae_window_length = 64
 # Training Settings
 # -------------------------------------------------------------------------------------------------
 
-#vae_weights_file = "data/results/weights/vae_weight_epoch_200.pt"
-#vae_weights_file = "../vae_cnn_v2/results_Muriel_Take1_double_Bind_fbx/weights/vae_weight_epoch_200.pt"
-#vae_weights_file = "../vae_cnn_v2/results_Muriel_Take1_double_Bind_bvh/weights/vae_weight_epoch_200.pt"
-vae_weights_file = "../vae_cnn_v2/results_Yurika_MotionClasses_Mediapipe_npz/weights/vae_weight_epoch_200.pt"
+vae_weights_file = "data/results/weights/vae_weight_epoch_200.pt"
 
 # -------------------------------------------------------------------------------------------------
 # OSC Settings
@@ -196,7 +204,7 @@ motion_synthesis.config["mocap_fps"] = mocap_fps
 motion_synthesis.config["orig_sequences"] = all_pose_sequences
 motion_synthesis.config["orig_seq1_index"] = 0
 motion_synthesis.config["orig_seq2_index"] = 0
-motion_synthesis.config["use_live_seq1"] = True
+motion_synthesis.config["use_live_seq1"] = False
 motion_synthesis.config["use_live_seq2"] = False
 
 synthesis = motion_synthesis.MotionSynthesis(motion_synthesis.config)
