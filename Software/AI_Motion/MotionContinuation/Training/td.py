@@ -49,25 +49,25 @@ print(f"Using {device} device")
 # -------------------------------------------------------------------------------------------------
 
 
-
-# Example 1: FBX
+"""
+# Example: FBX
 mocap_file_path = "data/mocap/"
 mocap_files = ["Muriel_Embodied_Machine.fbx"]
 mocap_valid_time_ranges = [ [ [ 3.0, 127.0 ] ] ] # in seconds
 mocap_topology_files = [None] # only used for .npz files
 mocap_pos_scale = 1.0
 mocap_fps = 50
+"""
 
 
-"""
-# Example 2: BVH
-mocap_file_path = "../../../Data/Mocap/Xsens/Stocos/Solos/bvh_50hz/"
-mocap_files = ["Muriel_Take1_double_Bind.bvh"]
-mocap_valid_time_ranges = [ [ [ 4.0, 328.0 ] ] ] # in seconds
-mocap_topology_files = [None] # only used for .npz files
-mocap_pos_scale = 1.0
-mocap_fps = 50
-"""
+# Example: NPZ
+mocap_file_path = "data/mocap/"
+mocap_files = ["MadelineHarms_Improvisation.npz"]
+mocap_valid_time_ranges = [ [ [ 10.0, 884.0 ] ] ] # in seconds
+mocap_topology_files = [ "data/configs/Mediapipe_config.json" ] # only used for .npz files
+mocap_pos_scale = 100.0
+mocap_fps = 25
+
 
 """
 # Example 3: NPZ
@@ -106,7 +106,7 @@ train_root_trajectory = False
 # Save Paths Settings
 # -------------------------------------------------------------------------------------------------
 
-save_path = "results/Muriel_Embodied_Machine_fbx/"
+save_path = "results/Madeline_Improvisation_fbx/"
 save_weights_path = save_path + "weights/"
 save_history_path = save_path + "history/"
 save_anims_path = save_path + "anims/"
