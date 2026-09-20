@@ -15,7 +15,6 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from collections import OrderedDict
 import torchaudio
-import simpleaudio as sa
 import numpy as np
 import random
 import glob

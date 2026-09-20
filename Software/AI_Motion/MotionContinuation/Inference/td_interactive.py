@@ -38,45 +38,23 @@ print(f"Using {device} device")
 # Mocap Settings
 # -------------------------------------------------------------------------------------------------
 
-
-# Example 1: FBX
+"""
+# Example: FBX
 mocap_file_path = "data/mocap/"
 mocap_files = ["Muriel_Embodied_Machine.fbx.fbx"]
 mocap_topology_files = [None for _ in mocap_files]
 mocap_valid_time_ranges = [None for _ in mocap_files]
 mocap_pos_scale = 1.0
 mocap_fps = 50
-
-
-"""
-# Example 2: BVH
-mocap_file_path = "../../../Data/Mocap/Xsens/Stocos/Solos/bvh_50hz/"
-mocap_files = ["Muriel_Take1_double_Bind.bvh"]
-mocap_topology_files = [None for _ in mocap_files]
-mocap_valid_time_ranges = [None for _ in mocap_files]
-mocap_pos_scale = 1.0
-mocap_fps = 50
 """
 
-"""
-# Example 3: NPZ
-mocap_file_path = "E:/data/mocap/Yurika/Mediapipe_v2/All/"
-mocap_files = ["Yurika_Everyday_Mediapipe_realtime.npz", "Yurika_Geometry_Mediapipe_realtime.npz", "Yurika_Rythm_Mediapipe_realtime.npz"]
-mocap_topology_files = [ "data/configs/Mediapipe_config.json", "data/configs/Mediapipe_config.json", "data/configs/Mediapipe_config.json"] # only used for .npz files
-mocap_valid_time_ranges = [None for _ in mocap_files]
+# Example: NPZ
+mocap_file_path = "data/mocap/"
+mocap_files = ["MadelineHarms_Improvisation.npz"]
+mocap_valid_time_ranges = [ [ [ 10.0, 884.0 ] ] ] # in seconds
+mocap_topology_files = [ "data/configs/Mediapipe_config.json" ] # only used for .npz files
 mocap_pos_scale = 100.0
-mocap_fps = 30
-"""
-
-"""
-# Example 3: NPZ
-mocap_file_path = "C:/Users/dbisig/Projects/Premiere/Data/Mocap/Xsens/Stocos/Solos/npz_60hz/"
-mocap_files = ["Muriel_Take1_double_Bind.npz"]
-mocap_topology_files = [ "data/configs/XSensLive_config.json"] # only used for .npz files
-mocap_valid_time_ranges = [ [ [ 10.6, 338.0 ] ] ]
-mocap_pos_scale = 100.0
-mocap_fps = 60
-"""
+mocap_fps = 25
 
 train_root_trajectory = False
 
@@ -92,11 +70,7 @@ decoder_ff_dim = 2048
 decoder_dropout = 0.1
 sequence_length = 64
 
-#decoder_weights_file = "../td_v2/results_Muriel_Take1_double_Bind_fbx/weights/decoder_weights_epoch_200.pt"
-#decoder_weights_file = "../td_v2/results_Muriel_Take1_double_Bind_bvh/weights/decoder_weights_epoch_200.pt"
-#decoder_weights_file = "../td_v2/results_Yurika_MotionClasses_Mediapipe_npz/weights/decoder_weights_epoch_200.pt"
-decoder_weights_file = "../Training/results_Muriel_Take1_DoubleBind_npz/weights/decoder_weights_epoch_400.pt"
-
+decoder_weights_file = "data/results/weights/decoder_weights_epoch_400.pth"
 
 gaussian_temp = 0.2
 pi_temperature = 1.5

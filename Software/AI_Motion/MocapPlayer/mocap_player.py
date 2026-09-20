@@ -24,19 +24,22 @@ motion_player.config["file_name"] = "data/mocap/Muriel_Take4_Blumen_Baile.fbx"
 motion_player.config["fps"] = 50
 """
 
+"""
 motion_player.config = { 
     "file_name": "../../../../CAS_AISoundMotion_Data_2026/Mocap/Stocos/Duets/XSens_npz_60fps/Jason_Muriel_Take1.npz",
     "topology_file_name": "data/configs/XSensLive_config.json",
     "fps": 60
     }
+"""
 
-"""
+
+
 motion_player.config = { 
-    "file_name": "../../../../CAS_AISoundMotion_Data_2026/Mocap/Stocos/Solos/Mediapipe_npz_50fps/Muriel_Blumen_Baile.npz",
+    "file_name": "../../../../CAS_AISoundMotion_Data_2026/Mocap/Motionbank/Solos/Mediapipe_npz_25fps/MadelineHarms_Improvisation.npz",
     "topology_file_name": "data/configs/Mediapipe_config.json",
-    "fps": 50
+    "fps": 25
     }
-"""
+
 
 """
 motion_player.config = { 

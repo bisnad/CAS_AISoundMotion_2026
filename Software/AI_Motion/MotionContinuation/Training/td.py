@@ -59,7 +59,6 @@ mocap_pos_scale = 1.0
 mocap_fps = 50
 """
 
-
 # Example: NPZ
 mocap_file_path = "data/mocap/"
 mocap_files = ["MadelineHarms_Improvisation.npz"]
@@ -68,37 +67,6 @@ mocap_topology_files = [ "data/configs/Mediapipe_config.json" ] # only used for 
 mocap_pos_scale = 100.0
 mocap_fps = 25
 
-
-"""
-# Example 3: NPZ
-mocap_file_path = "E:/data/mocap/Yurika/Mediapipe_v2/All/"
-mocap_files = ["Yurika_Everyday_Mediapipe_realtime.npz", "Yurika_Geometry_Mediapipe_realtime.npz", "Yurika_Rythm_Mediapipe_realtime.npz"]
-mocap_valid_time_ranges = [ [ [ 3.0, 81.0 ] ], [ [ 2.0, 83.0 ] ], [ [ 3.0, 82.0 ] ] ] # in seconds
-mocap_topology_files = [ "data/configs/Mediapipe_config.json", "data/configs/Mediapipe_config.json", "data/configs/Mediapipe_config.json"] # only used for .npz files
-mocap_pos_scale = 100.0
-mocap_fps = 30
-"""
-
-"""
-# Example 3: NPZ
-mocap_file_path = "../../../Data/Mocap/Xsens/Stocos/Solos/npz_60hz/"
-mocap_files = ["Muriel_Take1_double_Bind.npz"]
-mocap_valid_time_ranges = [ [ [ 10.6, 338.0 ] ] ] # in seconds
-mocap_topology_files = [ "data/configs/XSensLive_config.json"] # only used for .npz files
-mocap_pos_scale = 100.0
-mocap_fps = 60
-"""
-
-"""
-# Example 3: NPZ
-mocap_file_path = "../../../Data/Mocap/Pose3D/Stocos/Solos/"
-mocap_files = ["Muriel_DoubleBind_MediaPipe_OSC.npz"]
-mocap_valid_time_ranges = [ [ [ 4.0, 328.0 ] ] ] # in seconds
-mocap_topology_files = [ "data/configs/Mediapipe_config.json"] # only used for .npz files
-mocap_pos_scale = 100.0
-mocap_fps = 50
-"""
-
 mocap_loss_weights_file = None
 train_root_trajectory = False
 
@@ -106,7 +74,7 @@ train_root_trajectory = False
 # Save Paths Settings
 # -------------------------------------------------------------------------------------------------
 
-save_path = "results/Madeline_Improvisation_fbx/"
+save_path = "results/Madeline_Improvisation_npz/"
 save_weights_path = save_path + "weights/"
 save_history_path = save_path + "history/"
 save_anims_path = save_path + "anims/"
@@ -152,7 +120,7 @@ save_history = True
 
 save_weights = True
 load_weights = False
-decoder_weights_file = "results_Yurika_MotionClasses_Mediapipe_npz/weights/decoder_weights_epoch_200.pt"
+decoder_weights_file = "results/Madeline_Improvisation_fbx/weights/decoder_weights_epoch_200.pth"
 
 # -------------------------------------------------------------------------------------------------
 # Render Settings
@@ -700,7 +668,7 @@ def train(train_dataloader, test_dataloader, epochs):
         _test_loss_per_epoch = np.mean(np.array(_test_loss_per_epoch))
 
         if epoch % model_save_interval == 0 and save_weights:
-            torch.save(decoder.state_dict(), f"{save_weights_path}decoder_weights_epoch_{epoch}.pt")
+            torch.save(decoder.state_dict(), f"{save_weights_path}decoder_weights_epoch_{epoch}.pth")
 
         loss_history["train"].append(_train_loss_per_epoch)
         loss_history["test"].append(_test_loss_per_epoch)
@@ -982,7 +950,7 @@ if save_weights == True:
     plot_training_history(loss_history, f"{save_history_path}history_{epochs}.png")
 
     # save model weights
-    torch.save(decoder.state_dict(), f"{save_weights_path}decoder_weights_epoch_{epochs}.pt")
+    torch.save(decoder.state_dict(), f"{save_weights_path}decoder_weights_epoch_{epochs}.pth")
 
 # -------------------------------------------------------------------------------------------------
 # Run Inference and Export
