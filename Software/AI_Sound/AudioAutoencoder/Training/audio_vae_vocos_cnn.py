@@ -48,9 +48,15 @@ print(f'Using {device} device')
 # Audio Settings
 # -------------------------------------------------------------------------------------------------
 
-audio_data_path = "../../../../../CAS_AISoundMotion_Data_2026/Audio/Gutenberg/"
-audio_data_files = ["Night_and_Day_by_Virginia_Woolf_48khz.wav"]
+audio_data_path = "data/audio/"
+audio_data_files = ["Night_and_Day_by_Virginia_Woolf_48khz_excerpt.wav"]
 audio_valid_ranges = [[-1.0, -1.0]]
+
+"""
+audio_data_path = "data/audio/"
+audio_data_files = ["Take1__double_Bind_HQ_audio_crop_48khz.wav", "Take2_Hibr_II_HQ_audio_crop_48khz.wav"]
+audio_valid_ranges = [[-1.0, -1.0], [-1.0, -1.0]]
+"""
 
 audio_sample_rate = 48000 # numer of audio samples per sec
 audio_channels = 1
@@ -64,7 +70,7 @@ audio_mel_count_vae = None
 # Save Paths Settings
 # -------------------------------------------------------------------------------------------------
 
-save_path = "results/vae_cnn_Gutenberg_ld32"
+save_path = "results/vae_cnn_Gutenberg_ld32_2"
 save_weights_path = os.path.join(save_path, "weights/")
 save_history_path = os.path.join(save_path, "histories/")
 save_audio_path = os.path.join(save_path, "audio/")
@@ -418,17 +424,25 @@ class Decoder(nn.Module):
         # create convolutional layers
         self.conv_layers = nn.ModuleList()
         
-        padding = stride
-        output_padding = (padding[0] - 1, padding[1] - 1) # does this universally work?
-        
+        #padding = stride
+        #output_padding = (padding[0] - 1, padding[1] - 1) # does this universally work?
+        same_padding = (conv_kernel_size[0] // 2, conv_kernel_size[1] // 2)
+
         conv_layer_count = len(conv_channel_counts)
         for layer_index in range(1, conv_layer_count):
             self.conv_layers.append(nn.BatchNorm2d(conv_channel_counts[layer_index-1]))
-            self.conv_layers.append(nn.ConvTranspose2d(conv_channel_counts[layer_index-1], conv_channel_counts[layer_index], self.conv_kernel_size, stride=stride, padding=padding, output_padding=output_padding))
+            self.conv_layers.append(nn.Upsample(scale_factor=stride, mode="nearest"))
+            #self.conv_layers.append(nn.ConvTranspose2d(conv_channel_counts[layer_index-1], conv_channel_counts[layer_index], self.conv_kernel_size, stride=stride, padding=padding, output_padding=output_padding))
+            # first upsampling stage: no bias, no activation directly after, to avoid seeding a
+            # DC-offset spectral peak that later layers would otherwise replicate across the band
+            use_bias = layer_index != 1
+            self.conv_layers.append(nn.Conv2d(conv_channel_counts[layer_index-1], conv_channel_counts[layer_index], self.conv_kernel_size, stride=1, padding=same_padding, bias=use_bias))
             self.conv_layers.append(nn.LeakyReLU(0.2))
             
         self.conv_layers.append(nn.BatchNorm2d(conv_channel_counts[-1]))
-        self.conv_layers.append(nn.ConvTranspose2d(conv_channel_counts[-1], 1, self.conv_kernel_size, stride=stride, padding=padding, output_padding=output_padding))
+        #self.conv_layers.append(nn.ConvTranspose2d(conv_channel_counts[-1], 1, self.conv_kernel_size, stride=stride, padding=padding, output_padding=output_padding))
+        self.conv_layers.append(nn.Upsample(scale_factor=stride, mode="nearest"))
+        self.conv_layers.append(nn.Conv2d(conv_channel_counts[-1], 1, self.conv_kernel_size, stride=1, padding=same_padding))
 
     def forward(self, x):
         
