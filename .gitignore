@@ -11,3 +11,4 @@ Software/AI_Motion/MotionTracking/Yolo/ObjectDetection/models/*
 .venv/
 __pycache__/
 /Software/AI_Sound/HuggingFace/results
+/Software/AI_Sound/DanceDiffusion/models

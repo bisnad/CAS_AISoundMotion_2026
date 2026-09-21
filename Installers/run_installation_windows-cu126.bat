@@ -32,8 +32,9 @@ set "FILES[3]=stableaudio3_pyproject.windows-cu126.toml|..\Software\AI_Sound\Sta
 set "FILES[4]=mediapipe_pyproject.windows-cpu.toml|..\Software\AI_Motion\MotionTracking\Mediapipe|pyproject.toml"
 set "FILES[5]=yolo_pyproject.windows-cu126.toml|..\Software\AI_Motion\MotionTracking\Yolo|pyproject.toml"
 set "FILES[6]=bark_tts_pyproject.windows_cu118.toml|..\Software\AI_Sound\BarkTTS|pyproject.toml"
+set "FILES[7]=dancediffusion_pyproject_windows_cu118.toml|..\Software\AI_Sound\DanceDiffusion|pyproject.toml"
 
-for /L %%i in (0,1,6) do (
+for /L %%i in (0,1,7) do (
     for /f "tokens=1,2,3 delims=|" %%a in ("!FILES[%%i]!") do (
         set "SRC_FILE=%%a"
         set "TARGET_FOLDER=%%b"
