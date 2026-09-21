@@ -164,43 +164,77 @@ if os.path.exists(ae_encoder_weights_file):
 encoder.eval()
 
 class Decoder(nn.Module):
-    def __init__(self, latent_dim, mel_count, mel_filters, conv_channel_counts, conv_kernel_size, dense_layer_sizes):
+    
+    def __init__(self, latent_dim, mel_count, mel_filter_count, conv_channel_counts, conv_kernel_size, dense_layer_sizes):
         super().__init__()
+        
+        self.latent_dim = latent_dim
+        self.mel_count = mel_count
+        self.mel_filter_count = mel_filter_count
+        self.conv_channel_counts = conv_channel_counts
+        self.conv_kernel_size = conv_kernel_size
+        self.dense_layer_sizes = dense_layer_sizes
+        
+        # create dense layers
         self.dense_layers = nn.ModuleList()
-        stride = ((conv_kernel_size[0] - 1) // 2, (conv_kernel_size[1] - 1) // 2)
-
-        self.dense_layers.append(nn.Linear(latent_dim, dense_layer_sizes[0]))
+        
+        stride = ((self.conv_kernel_size[0] - 1) // 2, (self.conv_kernel_size[1] - 1) // 2)
+        
+        print("stride ", stride)
+                
+        self.dense_layers.append(nn.Linear(latent_dim, self.dense_layer_sizes[0]))
         self.dense_layers.append(nn.ReLU())
         
-        for layer_index in range(1, len(dense_layer_sizes)):
-            self.dense_layers.append(nn.Linear(dense_layer_sizes[layer_index-1], dense_layer_sizes[layer_index]))
+        dense_layer_count = len(dense_layer_sizes)
+        for layer_index in range(1, dense_layer_count):
+            self.dense_layers.append(nn.Linear(self.dense_layer_sizes[layer_index-1], self.dense_layer_sizes[layer_index]))
             self.dense_layers.append(nn.ReLU())
             
-        last_conv_layer_size_x = int(mel_filters // np.power(stride[0], len(conv_channel_counts)))
+        last_conv_layer_size_x = int(mel_filter_count // np.power(stride[0], len(conv_channel_counts)))
         last_conv_layer_size_y = int(mel_count // np.power(stride[1], len(conv_channel_counts)))
+        
         preflattened_size = [conv_channel_counts[0], last_conv_layer_size_x, last_conv_layer_size_y]
+        
         dense_layer_output_size = conv_channel_counts[0] * last_conv_layer_size_x * last_conv_layer_size_y
- 
-        self.dense_layers.append(nn.Linear(dense_layer_sizes[-1], dense_layer_output_size))
+
+        self.dense_layers.append(nn.Linear(self.dense_layer_sizes[-1], dense_layer_output_size))
         self.dense_layers.append(nn.ReLU())
+
         self.unflatten = nn.Unflatten(dim=1, unflattened_size=preflattened_size)
         
+        # create convolutional layers
         self.conv_layers = nn.ModuleList()
-        padding = stride
-        output_padding = (padding[0] - 1, padding[1] - 1) 
         
-        for layer_index in range(1, len(conv_channel_counts)):
+        #padding = stride
+        #output_padding = (padding[0] - 1, padding[1] - 1) # does this universally work?
+        same_padding = (conv_kernel_size[0] // 2, conv_kernel_size[1] // 2)
+
+        conv_layer_count = len(conv_channel_counts)
+        for layer_index in range(1, conv_layer_count):
             self.conv_layers.append(nn.BatchNorm2d(conv_channel_counts[layer_index-1]))
-            self.conv_layers.append(nn.ConvTranspose2d(conv_channel_counts[layer_index-1], conv_channel_counts[layer_index], conv_kernel_size, stride=stride, padding=padding, output_padding=output_padding))
+            self.conv_layers.append(nn.Upsample(scale_factor=stride, mode="nearest"))
+            #self.conv_layers.append(nn.ConvTranspose2d(conv_channel_counts[layer_index-1], conv_channel_counts[layer_index], self.conv_kernel_size, stride=stride, padding=padding, output_padding=output_padding))
+            # first upsampling stage: no bias, no activation directly after, to avoid seeding a
+            # DC-offset spectral peak that later layers would otherwise replicate across the band
+            use_bias = layer_index != 1
+            self.conv_layers.append(nn.Conv2d(conv_channel_counts[layer_index-1], conv_channel_counts[layer_index], self.conv_kernel_size, stride=1, padding=same_padding, bias=use_bias))
             self.conv_layers.append(nn.LeakyReLU(0.2))
             
         self.conv_layers.append(nn.BatchNorm2d(conv_channel_counts[-1]))
-        self.conv_layers.append(nn.ConvTranspose2d(conv_channel_counts[-1], 1, conv_kernel_size, stride=stride, padding=padding, output_padding=output_padding))
+        #self.conv_layers.append(nn.ConvTranspose2d(conv_channel_counts[-1], 1, self.conv_kernel_size, stride=stride, padding=padding, output_padding=output_padding))
+        self.conv_layers.append(nn.Upsample(scale_factor=stride, mode="nearest"))
+        self.conv_layers.append(nn.Conv2d(conv_channel_counts[-1], 1, self.conv_kernel_size, stride=1, padding=same_padding))
 
     def forward(self, x):
-        for layer in self.dense_layers: x = layer(x)
+        
+        for lI, layer in enumerate(self.dense_layers):
+            x = layer(x)
+        
         x = self.unflatten(x)
-        for layer in self.conv_layers: x = layer(x)
+
+        for lI, layer in enumerate(self.conv_layers):
+            x = layer(x)
+    
         return x
 
 decoder = Decoder(latent_dim, mel_count, mel_filters, list(reversed(ae_conv_channel_counts)), ae_conv_kernel_size, list(reversed(ae_dense_layer_sizes))).to(device)

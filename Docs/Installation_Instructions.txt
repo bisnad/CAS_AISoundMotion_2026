@@ -1,0 +1,23 @@
+CAS AI for Creative Practices
+Installation Instructions for CAS Modules 3 
+
+>> Install Compilation Environment
+
+Windows:
+??
+
+MacOS:
+xcode-select --install
+
+
+>> Install UV
+See: https://docs.astral.sh/uv/getting-started/installation/
+
+Windows:
+
+
+
+MacOS:
+
+
+Install GIT 

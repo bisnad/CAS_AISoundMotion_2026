@@ -1,0 +1,44 @@
+[project]
+name = "bark-tts"
+version = "0.1.0"
+description = "Suno AI Bark text-to-speech setup (macOS, UV, MPS/CPU)"
+requires-python = "==3.13.*"
+dependencies = [
+    "suno-bark",
+    "boto3",
+    "encodec",
+    "funcy",
+    "numpy",
+    "scipy",
+    "tokenizers",
+    "tqdm",
+    "transformers",
+    "torch",
+    "torchvision",
+    "torchaudio",
+    "notebook",
+    "ipywidgets",
+    "matplotlib",
+    "optimum",
+    "soundfile",
+    "hf_xet",
+    "setuptools<81",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+# Equivalent of: git clone https://github.com/suno-ai/bark && pip install .
+# The repo's own pyproject.toml declares its package name as "suno-bark",
+# even though you still `import bark` in Python.
+suno-bark = { git = "https://github.com/suno-ai/bark", rev = "main" }
+
+# No custom index needed on macOS: PyPI's default torch wheels for macOS
+# already include Apple Silicon MPS (GPU) acceleration. There is no separate
+# "CUDA build" for macOS since NVIDIA CUDA does not run on Apple hardware.
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.3.0",
+]
