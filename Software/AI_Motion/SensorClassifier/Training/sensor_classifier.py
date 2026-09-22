@@ -33,20 +33,20 @@ print(f"Using {device} device")
 Sensor Data Settings
 """
 
-
-sensor_data_file_path = "data/sensors/"
+# Example: Mobile Phone Data (Sensor2Osc)
+sensor_data_file_path = "data/sensors_phone/"
 sensor_data_file_extensions = [".npz"] 
 sensor_data_ids = ["/accelerometer", "/gyroscope"] # OSC addresses to extract
 sensor_data_window_length = 60
 sensor_data_window_offset = 20
 sensor_stats_load = False # load previously calculated stats instead of calculating new ones
 
-
 """
-sensor_data_file_path = "E:/Data/mocap/Daniel/Imu/npz/Classes/"
+# Example: Imu Data
+sensor_data_file_path = "data/sensors_imu/"
 sensor_data_file_extensions = [".npz"] 
-sensor_data_ids = ["/imu/1"] # OSC addresses to extract
-sensor_data_window_length = 90
+sensor_data_ids = ["/imu/1/accelerometer", "/imu/1/gyroscope"] # OSC addresses to extract
+sensor_data_window_length = 60
 sensor_data_window_offset = 20
 sensor_stats_load = False # load previously calculated stats instead of calculating new ones
 """
@@ -75,13 +75,14 @@ weight_decay = 0.001
 label_smoothing = 0.1
 load_weights = False
 save_weights = True
-model_weights_file = "results_sensor/weights/classifier_epoch_200.pth"
+model_weights_file = "results/sensors_imu_2/weights/classifier_epoch_400.pth"
 
 """
 Save Paths Settings
 """
 
-save_path = "results_Muriel_IMU"
+save_path = "results/sensors_phone"
+#save_path = "results/sensors_imu"
 save_stats_path = save_path + "/stats"
 save_history_path = save_path + "/history"
 save_weights_path = save_path + "/weights"
@@ -213,17 +214,20 @@ class Classifier(nn.Module):
         self.init_weights(self.rnn)
         self.init_weights(self.fc1)
         self.init_weights(self.fc2)
-        
+
     def init_weights(self, m):
         if isinstance(m, nn.Linear):
             torch.nn.init.xavier_uniform_(m.weight)
             m.bias.data.fill_(0.01)
         elif isinstance(m, nn.LSTM):
-            for param in m.parameters():
-                if len(param.shape) >= 2:
+            for name, param in m.named_parameters():
+                if "weight" in name:
                     torch.nn.init.orthogonal_(param.data)
-                else:
-                    torch.nn.init.normal_(param.data)
+                elif "bias" in name:
+                    param.data.fill_(0)
+                    n = param.size(0)
+                    # forget gate is the second of the 4 chunks: i, f, g, o
+                    param.data[n // 4: n // 2].fill_(1.0)
 
     def forward(self, x):
         x, (h, c) = self.rnn(x)

@@ -67,7 +67,7 @@ mocap_topology_file = "data/configs/Mediapipe_config.json"
 mocap_data_types = ["rot", "vel_rot", "acc_rot"]
 mocap_fps = 25
 mocap_joint_indices = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32] # skeleton without face, hands
-mocap_data_window_length = 35
+mocap_data_window_length = 30
 mocap_data_window_offset = 15
 mocap_pos_scale = 100.0
 mocap_stats_load = False
@@ -379,6 +379,23 @@ class Classifier(nn.Module):
         )
         self.fc_dropout = nn.Dropout(dropout)
         self.classifier = nn.Linear(hidden_dim, num_classes)
+
+        self.init_weights(self.embedding)
+        self.init_weights(self.lstm)
+        self.init_weights(self.classifier)
+
+    def init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            torch.nn.init.xavier_uniform_(m.weight)
+            m.bias.data.fill_(0.01)
+        elif isinstance(m, nn.LSTM):
+            for name, param in m.named_parameters():
+                if "weight" in name:
+                    torch.nn.init.orthogonal_(param.data)
+                elif "bias" in name:
+                    param.data.fill_(0)
+                    n = param.size(0)
+                    param.data[n // 4: n // 2].fill_(1.0)
 
     def forward(self, x):
         x = self.embedding(x)

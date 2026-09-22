@@ -54,30 +54,33 @@ print('Using {} device'.format(device))
 
 # Sensor Data Settings
 
-"""
-sensor_data_path = "data/sensors/"  # Path to the training folders to extract class names
-sensor_data_norm_path = "results/stats/"
+
+# Example Mobile Phone (Sensor2Osc)
+sensor_data_path = "data/sensors/sensors_phone/"  # Path to the training folders to extract class names
+sensor_data_norm_path = "data/results/sensors_phone/stats/"
 sensor_data_ids = ["/accelerometer", "/gyroscope"] 
 sensor_data_window_length = 90
+
 """
-
-sensor_data_path = "E:/Data/mocap/Daniel/Imu/npz/Classes/"  # Path to the training folders to extract class names
-sensor_data_norm_path = "../SensorClassifier/results_Daniel_IMU/stats/"
-sensor_data_ids = ["/imu/1"] 
+# Example Imu
+sensor_data_path = "data/sensors/sensors_imu/"  # Path to the training folders to extract class names
+sensor_data_norm_path = "data/results/sensors_imu/stats/"
+sensor_data_ids = ["/imu/1/accelerometer", "/imu/1/gyroscope"] 
 sensor_data_window_length = 90
-
+"""
 
 # Model Settings
 
 model_hidden_dim = 64
 model_layer_count = 3
 model_dropout = 0.3
-model_weights_file = "../SensorClassifier/results_Daniel_IMU/weights/classifier_weights_epoch_400.pth"
+model_weights_file = "data/results/sensors_phone/weights/classifier_weights_epoch_400.pth"
+#model_weights_file = "data/results/sensors_imu/weights/classifier_weights_epoch_400.pth"
 
 # OSC Settings
 
 osc_receive_ip = "0.0.0.0"
-osc_receive_port = 9001
+osc_receive_port = 9007
 osc_send_ip = "127.0.0.1"
 osc_send_port = 9008
 
@@ -166,41 +169,47 @@ except FileNotFoundError as e:
 Create Model
 """
 
-class MotionClassifier(nn.Module):
-    """
-    LSTM-based neural network for motion classification.
-    """
-    
-    def __init__(self, input_dim: int, hidden_dim: int, layer_count: int, 
-                 class_count: int, dropout: float = 0.3):
+class Classifier(nn.Module):
+    def __init__(self, input_dim, hidden_dim, layer_count, class_count, dropout):
         super().__init__()
-        
-        # Apply dropout only if there's more than 1 layer to match training script
-        lstm_dropout = dropout if layer_count > 1 else 0.0
-        
-        self.rnn = nn.LSTM(input_dim, hidden_dim, layer_count, 
-                           batch_first=True, dropout=lstm_dropout)
+        self.rnn = nn.LSTM(input_dim, hidden_dim, layer_count, batch_first=True, dropout=dropout if layer_count > 1 else 0)
         self.dropout1 = nn.Dropout(dropout)
         self.fc1 = nn.Linear(hidden_dim, hidden_dim // 2)
         self.dropout2 = nn.Dropout(dropout)
         self.fc2 = nn.Linear(hidden_dim // 2, class_count)
         self.relu = nn.ReLU()
         
-        self._init_weights()
+        self.init_weights(self.rnn)
+        self.init_weights(self.fc1)
+        self.init_weights(self.fc2)
         
-    def _init_weights(self):
-        for module in [self.fc1, self.fc2]:
-            if isinstance(module, nn.Linear):
-                torch.nn.init.xavier_uniform_(module.weight)
-                module.bias.data.fill_(0.01)
-                
-        for param in self.rnn.parameters():
-            if len(param.shape) >= 2:
-                torch.nn.init.orthogonal_(param.data)
-            else:
-                torch.nn.init.normal_(param.data)
+    """
+    def init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            torch.nn.init.xavier_uniform_(m.weight)
+            m.bias.data.fill_(0.01)
+        elif isinstance(m, nn.LSTM):
+            for param in m.parameters():
+                if len(param.shape) >= 2:
+                    torch.nn.init.orthogonal_(param.data)
+                else:
+                    torch.nn.init.normal_(param.data)
+    """
+    def init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            torch.nn.init.xavier_uniform_(m.weight)
+            m.bias.data.fill_(0.01)
+        elif isinstance(m, nn.LSTM):
+            for name, param in m.named_parameters():
+                if "weight" in name:
+                    torch.nn.init.orthogonal_(param.data)
+                elif "bias" in name:
+                    param.data.fill_(0)
+                    n = param.size(0)
+                    # forget gate is the second of the 4 chunks: i, f, g, o
+                    param.data[n // 4: n // 2].fill_(1.0)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x):
         x, (h, c) = self.rnn(x)
         x = h[-1]  # Take final hidden state from last layer
         x = self.dropout1(x)
@@ -218,7 +227,7 @@ class LiveClassifier(QtCore.QObject):
     
     new_data = QtCore.pyqtSignal(np.ndarray)
     
-    def __init__(self, classifier: MotionClassifier, parent=None):
+    def __init__(self, classifier: Classifier, parent=None):
         super().__init__(parent=parent)
         self.classifier = classifier.eval()
         
@@ -513,7 +522,7 @@ class MotionClassifierApp(QtCore.QObject):
             return False
             
     def _initialize_model(self):
-        classifier = MotionClassifier(
+        classifier = Classifier(
             input_dim=model_input_dim,
             hidden_dim=model_hidden_dim,
             layer_count=model_layer_count,
