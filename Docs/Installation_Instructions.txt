@@ -1,23 +1,191 @@
 CAS AI for Creative Practices
-Installation Instructions for CAS Modules 3 
+Installation instructions for CAS Modules 3 and 5
+Before beginning, install the following in this order:
 
->> Install Compilation Environment
+1. Git
+2. A compilation environment
+3. UV
 
-Windows:
-??
+After each section, run the listed verification command before proceeding.
 
-MacOS:
+>>>> 1. Install Git
+
+>> 1.1 Install Git on Windows
+
+Open PowerShell and run:
+winget install --exact --id Git.Git --source winget
+
+If Windows displays a UAC prompt, approve it.
+
+>> 1.2 Verify Git on Windows
+Open PowerShell and run:
+git --version
+
+Expected output resembles:
+git version 2.x.x.windows.x
+
+>> 1.3. Install Git on macOS
+
+Git is installed as part of Apple’s Xcode Command Line Tools. It will be installed in the next section; no separate Git installation is required.
+
+>>>> 2. Install compilation environment
+
+>> 2.1 Install compilation environment on Windows
+
+Open PowerShell and run:
+winget install --exact --id Microsoft.VisualStudio.2022.BuildTools `
+  --override "--passive --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+
+If Windows displays a UAC prompt, approve it.
+
+>> 2.2 Verify compilation environment on Windows
+
+Close all currently open PowerShell terminals.
+
+From the Start menu, open:
+x64 Native Tools Command Prompt for VS 2022
+
+Run:
+cl
+
+Expected output begins with something similar to:
+Microsoft (R) C/C++ Optimizing Compiler Version ...
+
+>> 2.3 Install compilation environment on MacOS
+
+Open Terminal and run:
 xcode-select --install
 
+A graphical macOS dialog opens. Choose Install and, if requested.
 
->> Install UV
+>> 2.4 Verify compilation environment on MacOS
+
+Open a new Terminal and run:
+clang --version
+make --version
+git --version
+
+>>>> 3. Install UV
+
+>> 3.1. Install UV on Windows
+
+Open a PowerShell window and run:
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+>> 3.2. Verify UV on Windows
+
+Open a new PowerShell window and run:
+uv --version
+
+>> 3.2. Install UV on MacOS
+
+Open Terminal window and run:
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+>> 3.2. Install UV on MacOS
+
+Open a new Terminal window and run:
+uv --version
+
+>>>> 4. Download Course Material using Git
+
+>> 4.1. Create folder to hold the course material
+
+In Finder (MacOS) / File Explorer (Windows):
+Create a new folder that you want to hold the course material for modules 3 and 5. 
+
+>> 4.2. Clone Github Repositories into Course folder
+
+Open a Powershell (Windows) or Terminal (MacOS) window and run:
+
+cd <path>
+
+where path points to the folder you created.
+
+Still in the window, run:
+
+git clone https://github.com/bisnad/CAS_AISoundMotion_2026.git
+git clone https://github.com/bisnad/CAS_AISoundMotion_Data_2026.git
+
+The first git clone command downloads mostly source code of software tools.
+The second git clone command downloads mostly data (video, audio and motion capture files, model weights)
+
+>> 4.3. MacOS only, make all shell scripts auto execute by double click with mouse
+
+In Finder, within the course folder, navigate to any file that ends in .sh (example CAS_AISoundMotion_2026/Installers/run_installation_macos-cpu.sh) and open the file information for it (command + i). 
+In the information window, select under the option "Open width": Terminal. Then 
+
+>>>> 5. Install python environments using UV
+
+>> 5.1. Install python environments on MacOS
+
+In Finder, start the shell script CAS_AISoundMotion_2026/Installers/run_installation_macos-cpu.sh
+
+This will copy all the platform specific uv project files (pyproject.toml) to the corresponding subfolders.
+
+>> 5.2. Install python environments on Windows
+
+If you have a Windows PC with Nvidia GPU:
+In File Explorer, start the bat script CAS_AISoundMotion_2026/Installers/run_installation_windows-cu126.bat 
+
+If you have a Windows PC without Nvidia GPU:
+In File Explorer, start the bat script CAS_AISoundMotion_2026/Installers/run_installation_windows-cpu.bat 
+
+This will copy all the platform specific uv project files (pyproject.toml) to the corresponding subfolders.
+
+
+
+
+
+
+
+CAS AI for Creative Practices
+Installation Instructions for CAS Modules 3 
+
+>>>> Install Compilation Environment
+
+>> Install Compilation Environment for Windows: Install Visual Studio Build Tools
+Open PowerShell as Administrator and run:
+winget install --exact --id Microsoft.VisualStudio.2022.BuildTools `
+  --override "--passive --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+
+>> Verify Compilation Environment for Windows:
+Close and reopen the terminal, then open from the Start menu:
+x64 Native Tools Command Prompt for VS 2022
+Run:
+cl
+You should see output resembling:
+Microsoft (R) C/C++ Optimizing Compiler Version ...
+
+>> Install Compilation Environment for MacOS:
+Open Terminal and run:
+xcode-select --install
+
+>> Verify Compilation Environment for  MacOS:
+Open Terminal and run:
+clang --version
+make --version
+git --version
+
+>>>> Install GIT
+
+>> Install git for Windows
+Open PowerShell and run:
+winget install --exact --id Git.Git
+
+>> Install git for MacOS
+Not necessary, since git is installed automatically as part of the compilation environment
+
+>>>> Install UV
 See: https://docs.astral.sh/uv/getting-started/installation/
 
-Windows:
+Install UV for Windows:
+Open PowerShell and run:
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 
+Install UV for MacOS:
+Open Terminal and run:
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source $HOME/.local/bin/env 
 
-
-MacOS:
-
-
-Install GIT 
+>>>> Clone 
