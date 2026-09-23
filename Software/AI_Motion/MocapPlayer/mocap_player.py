@@ -19,10 +19,10 @@ import motion_gui
 Setup Motion Player
 """
 
-"""
+
 motion_player.config["file_name"] = "data/mocap/Muriel_Take4_Blumen_Baile.fbx"
 motion_player.config["fps"] = 50
-"""
+
 
 """
 motion_player.config = { 
@@ -32,14 +32,13 @@ motion_player.config = {
     }
 """
 
-
-
+"""
 motion_player.config = { 
     "file_name": "../../../../CAS_AISoundMotion_Data_2026/Mocap/Motionbank/Solos/Mediapipe_npz_25fps/MadelineHarms_Improvisation.npz",
     "topology_file_name": "data/configs/Mediapipe_config.json",
     "fps": 25
     }
-
+"""
 
 """
 motion_player.config = { 
