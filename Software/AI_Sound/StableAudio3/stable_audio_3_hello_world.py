@@ -93,7 +93,7 @@ torchaudio.save("stable_audio_3_text_to_audio.wav", text_to_audio_result[0].deta
 # the higher it is, the closer the result gets to plain text-to-audio.
 # ----------------------------------------------------------------------------
 
-audio_file = "input/hitting_metal.wav"
+audio_file = "data/audio/hitting_metal.wav"
 initial_noise_level = 0.4
 prompt = "footsteps on gravel"
 negative_prompt = "low-quality, distorted, noisy"
@@ -126,7 +126,7 @@ torchaudio.save("stable_audio_3_initial_audio.wav", initial_audio_result[0].deta
 # "select a region in a waveform editor and re-render just that region."
 # ----------------------------------------------------------------------------
 
-audio_file = "input/hitting_metal.wav"
+audio_file = "data/audio/hitting_metal.wav"
 inpaint_mask_start_sec = 1.0
 inpaint_mask_end_sec = 4.0
 prompt = "footsteps on gravel"
@@ -169,7 +169,7 @@ torchaudio.save("stable_audio_3_inpainting.wav", inpainting_result[0].detach().c
 # appended tail is generated.
 # ----------------------------------------------------------------------------
 
-audio_file = "input/hitting_metal.wav"
+audio_file = "data/audio/hitting_metal.wav"
 audio_continuation_start = 5.0
 duration = 30.0
 prompt = "footsteps on gravel"

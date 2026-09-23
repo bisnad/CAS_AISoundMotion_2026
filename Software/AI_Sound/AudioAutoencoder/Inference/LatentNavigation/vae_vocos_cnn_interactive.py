@@ -59,7 +59,7 @@ audio_mel_count_vae = None
 audio_mel_count_vae_per_vocos = None
 audio_window_offset = 960
 
-audio_output_device = 7
+audio_output_device = 0
 
 """
 VAE Model Settings
