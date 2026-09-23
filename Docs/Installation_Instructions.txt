@@ -133,59 +133,84 @@ In File Explorer, start the bat script CAS_AISoundMotion_2026/Installers/run_ins
 
 This will copy all the platform specific uv project files (pyproject.toml) to the corresponding subfolders.
 
+>>>> 6. Test Course Examples
 
+Each course example can be run by executing a corresponding shell script (MacOS) or bat scrit (Windows). This script starts the corresponding python-based application that goes along with the example.
+When executing these scripts for the first time, UV will automatically create a virtual environment and install all dependencies. This can take a while. Once the environment has been created and the dependencies installed, executing the script will be very quick.
 
+For the time being, just make sure that the python-based applications start without any issues. Some of the examples, in particular the ones that train a machine-learning model, take very long to execute. You can abort training by just closing the Terminal window that opens together with the application.
 
+>> 6.1. Test Course Examples for Module 3
 
+On MacOs, the scripts are (in alphabetical order):
 
+AudioAnalysis / audio_analysis.sh
+AudioAutoencoder / Inference / HelloWorld / vae_vocos_cnn_hello_world.sh
+AudioAutoencoder / Inference / LatentManipulation / vae_vocos_cnn_interactive.sh
+AudioAutoencoder / Inference / LatentNavigation / vae_vocos_cnn_interactive.sh
+AudioAutoencoder / Training / audio_vae_vocos_cnn.sh
+AudioClustering / audio_clustering.sh
+AudioNearestNeighbors / audio_nearest_neighbors.sh
+AudioRepresentation / audio_representation_hello_world.sh
+HuggingFace / audio_ldm2_hello_world.sh
+HuggingFace / stable_audio_open1_hello_world.sh
+SpectralPlayground / spectral_playground_hello_world.sh
 
-CAS AI for Creative Practices
-Installation Instructions for CAS Modules 3 
+On MacOs, the scripts are (in alphabetical order)::
 
->>>> Install Compilation Environment
+AudioAnalysis / audio_analysis.bat
+AudioAutoencoder / Inference / HelloWorld / vae_vocos_cnn_hello_world.bat
+AudioAutoencoder / Inference / LatentManipulation / vae_vocos_cnn_interactive.bat
+AudioAutoencoder / Inference / LatentNavigation / vae_vocos_cnn_interactive.bat
+AudioAutoencoder / Training / audio_vae_vocos_cnn.bat
+AudioClustering / audio_clustering.bat
+AudioNearestNeighbors / audio_nearest_neighbors.bat
+AudioRepresentation / audio_representation_hello_world.bat
+HuggingFace / audio_ldm2_hello_world.bat
+HuggingFace / stable_audio_open1_hello_world.bat
+SpectralPlayground / spectral_playground_hello_world.bat
 
->> Install Compilation Environment for Windows: Install Visual Studio Build Tools
-Open PowerShell as Administrator and run:
-winget install --exact --id Microsoft.VisualStudio.2022.BuildTools `
-  --override "--passive --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+>> 6.2. Test Course Examples for Module 5
 
->> Verify Compilation Environment for Windows:
-Close and reopen the terminal, then open from the Start menu:
-x64 Native Tools Command Prompt for VS 2022
-Run:
-cl
-You should see output resembling:
-Microsoft (R) C/C++ Optimizing Compiler Version ...
+On MacOs, the scripts are (in alphabetical order):
 
->> Install Compilation Environment for MacOS:
-Open Terminal and run:
-xcode-select --install
+MocapClassifier / Inference / mocap_classifier_interactive_lstm.sh
+MocapClassifier / Training / mocap_classifier_lstm.sh
+MocapClustering / clustering_interactive.sh
+MocapPlayer / mocap_player.sh
+MotionAnalysis / mocap_analysis.sh
+MotionAutoencoder / Inference / LatentManipulation / vae_cnn_interactive.sh
+MotionAutoencoder / Inference / LatentNavigation / vae_cnn_interactive.sh
+MotionAutoencoder / Training / vae_cnn.sh
+MotionContinuation / Inference / td_interactive.sh
+MotionContinuation / Training / td.sh
+MotionTracking / Mediapipe / PoseEstimation / mediapipe_pose.sh
+MotionTracking / Yolo / ObjectDetection / yolo_object2d.sh
+MotionTracking / Yolo / PoseEstimation / yolo_pose3d.sh
+SensorClassifier / Inference / sensor_classifier_interactive.sh
+SensorClassifier / Training / sensor_classifier.sh
+SensorPlayer / sensor_player.sh
+SensorRecorder / sensor_recorder.sh
 
->> Verify Compilation Environment for  MacOS:
-Open Terminal and run:
-clang --version
-make --version
-git --version
+On Windows, the scripts are (in alphabetical order):
 
->>>> Install GIT
+MocapClassifier / Inference / mocap_classifier_interactive_lstm.bat
+MocapClassifier / Training / mocap_classifier_lstm.bat
+MocapClustering / clustering_interactive.bat
+MocapPlayer / mocap_player.bat
+MotionAnalysis / mocap_analysis.bat
+MotionAutoencoder / Inference / LatentManipulation / vae_cnn_interactive.bat
+MotionAutoencoder / Inference / LatentNavigation / vae_cnn_interactive.bat
+MotionAutoencoder / Training / vae_cnn.bat
+MotionContinuation / Inference / td_interactive.bat
+MotionContinuation / Training / td.bat
+MotionTracking / Mediapipe / PoseEstimation / mediapipe_pose.bat
+MotionTracking / Yolo / ObjectDetection / yolo_object2d.bat
+MotionTracking / Yolo / PoseEstimation / yolo_pose3d.bat
+SensorClassifier / Inference / sensor_classifier_interactive.bat
+SensorClassifier / Training / sensor_classifier.bat
+SensorPlayer / sensor_player.bat
+SensorRecorder / sensor_recorder.bat
 
->> Install git for Windows
-Open PowerShell and run:
-winget install --exact --id Git.Git
+>>>> 7. Setup Visual Studio Code for Course Examples
 
->> Install git for MacOS
-Not necessary, since git is installed automatically as part of the compilation environment
-
->>>> Install UV
-See: https://docs.astral.sh/uv/getting-started/installation/
-
-Install UV for Windows:
-Open PowerShell and run:
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-
-Install UV for MacOS:
-Open Terminal and run:
-curl -LsSf https://astral.sh/uv/install.sh | sh
-source $HOME/.local/bin/env 
-
->>>> Clone 
