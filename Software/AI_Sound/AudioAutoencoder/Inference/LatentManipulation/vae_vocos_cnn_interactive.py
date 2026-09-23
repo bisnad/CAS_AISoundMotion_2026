@@ -44,7 +44,7 @@ audio_file_paths = [
 audio_sample_rate = 48000
 audio_channel_count = 1
 audio_buffer_size = 1792
-default_audio_output_device = 7  # Will be overridden by GUI if needed
+default_audio_output_device = 0  # Will be overridden by GUI if needed
 max_audio_queue_length = 32
 
 # automatically calculated settings

@@ -21,12 +21,31 @@ If Windows displays a UAC prompt, approve it.
 Open PowerShell and run:
 git --version
 
-Expected output resembles:
-git version 2.x.x.windows.x
+>> 1.3. Install GIT LFS on Windows
+Open browser and go to: https://git-lfs.com/
+Download and install git lfs for Windows
+Once installed, Open Powershell and run:
+git lfs install
 
->> 1.3. Install Git on macOS
+>> 1.4 Verify Git LFS on Windows
+Open PowerShell and run:
+git lfs version
+
+>> 1.4. Install Git on macOS
 
 Git is installed as part of Apple’s Xcode Command Line Tools. It will be installed in the next section; no separate Git installation is required.
+
+>> 1.5. Install GIT LFS on MacOS
+Open browser and go to: https://git-lfs.com/
+Download git lfs for MacOS (Apple Silicon Version)
+Once downloaded, unpack the zip file.
+Open Terminal and run:
+cd ~/Downloads/git-lfs-*
+sudo ./install.sh
+
+>> 1.6 Verify Git on MacOS
+Open Terminal and run:
+git lfs version
 
 >>>> 2. Install compilation environment
 
