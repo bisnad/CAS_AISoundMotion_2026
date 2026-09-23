@@ -54,28 +54,27 @@ print('Using {} device'.format(device))
 
 # Sensor Data Settings
 
-
+"""
 # Example Mobile Phone (Sensor2Osc)
 sensor_data_path = "data/sensors/sensors_phone/"  # Path to the training folders to extract class names
 sensor_data_norm_path = "data/results/sensors_phone/stats/"
 sensor_data_ids = ["/accelerometer", "/gyroscope"] 
-sensor_data_window_length = 90
-
+sensor_data_window_length = 60
 """
+
 # Example Imu
 sensor_data_path = "data/sensors/sensors_imu/"  # Path to the training folders to extract class names
 sensor_data_norm_path = "data/results/sensors_imu/stats/"
 sensor_data_ids = ["/imu/1/accelerometer", "/imu/1/gyroscope"] 
-sensor_data_window_length = 90
-"""
+sensor_data_window_length = 60
 
 # Model Settings
 
 model_hidden_dim = 64
 model_layer_count = 3
 model_dropout = 0.3
-model_weights_file = "data/results/sensors_phone/weights/classifier_weights_epoch_400.pth"
-#model_weights_file = "data/results/sensors_imu/weights/classifier_weights_epoch_400.pth"
+#model_weights_file = "data/results/sensors_phone/weights/classifier_weights_epoch_400.pth"
+model_weights_file = "data/results/sensors_imu/weights/classifier_weights_epoch_400.pth"
 
 # OSC Settings
 
