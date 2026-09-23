@@ -142,6 +142,7 @@ For the time being, just make sure that the python-based applications start with
 
 >> 6.1. Test Course Examples for Module 3
 
+
 On MacOs, the scripts are (in alphabetical order):
 
 AudioAnalysis / audio_analysis.sh
@@ -155,6 +156,10 @@ AudioRepresentation / audio_representation_hello_world.sh
 HuggingFace / audio_ldm2_hello_world.sh
 HuggingFace / stable_audio_open1_hello_world.sh
 SpectralPlayground / spectral_playground_hello_world.sh
+StableAudio3 / stable_audio_3_gui_inpaint_continue.sh
+StableAudio3 / stable_audio_3_gui_interpolation.sh
+StableAudio3 / stable_audio_3_gui_text_to_audio.sh
+StableAudio3 / stable_audio_3_hello_world.sh
 
 On MacOs, the scripts are (in alphabetical order)::
 
@@ -169,6 +174,10 @@ AudioRepresentation / audio_representation_hello_world.bat
 HuggingFace / audio_ldm2_hello_world.bat
 HuggingFace / stable_audio_open1_hello_world.bat
 SpectralPlayground / spectral_playground_hello_world.bat
+StableAudio3 / stable_audio_3_gui_inpaint_continue.bat
+StableAudio3 / stable_audio_3_gui_interpolation.bat
+StableAudio3 / stable_audio_3_gui_text_to_audio.bat
+StableAudio3 / stable_audio_3_hello_world.bat
 
 >> 6.2. Test Course Examples for Module 5
 
@@ -213,4 +222,82 @@ SensorPlayer / sensor_player.bat
 SensorRecorder / sensor_recorder.bat
 
 >>>> 7. Setup Visual Studio Code for Course Examples
+
+>> 7.1. Grant Permission to Example Folders
+
+In Visual Studio Code:
+
+Open one of the Example folders
+Open Command Palette: Cmd + Shift + P
+Type: Workspaces: Manage Workspace Trust
+Click: Trust
+
+If asked if you want to trust the all folders from the entire github repository, confirm this.
+
+
+>>>> 8. Gain Acccess to Gated Models on Hugging Face
+
+Some of Huggingface related examples will fail if you don't have registered for read access for the corresponding models. 
+
+>> 8.1. Create Hugging Face Account
+
+Open web browser and go to https://huggingface.co/
+Select Sign Up.
+Create an account using an email address.
+Choose a username.
+Verify the email address.
+Sign in to the account in the web browser.
+
+>> 8.2. Obtain access to Stable Audio Open 1.0
+
+This model is gated: Hugging Face explicitly displays that users must sign in or register to review its access conditions and retrieve its contents.
+
+Open web browser and go to https://huggingface.co/stabilityai/stable-audio-open-1.0
+Read the displayed model licence and conditions.
+Complete any required fields on the access form.
+Click the button whose wording is similar to:
+Agree and access repository
+Request access
+Accept and continue
+
+>> 8.2. Obtain access to Stable Audio 3 Small-SFX
+
+This model is also gated.
+
+Open web browser and go to https://huggingface.co/stabilityai/stable-audio-3-small-sfx
+Read the displayed model licence and conditions.
+Complete any required fields on the access form.
+Click the button whose wording is similar to:
+Agree and access repository
+Request access
+Accept and continue
+
+>> 8.3. Create a read access token
+
+A token is a secret credential that lets code running on a computer authenticate as that Hugging Face user.
+
+Open web browser and go to https://huggingface.co/settings/tokens
+Click New token.
+Give it a meaningful name.
+Choose a token with read-only access.
+Click Generate token.
+Store the generated access token somewhere safe.
+
+>> 8.4. Authenticate Huggingface on your Computer
+
+In Terminal (MacOS) or Powershell (Windows):
+
+cd into CAS_AISoundMotion_2026 / AI_Sound
+
+uv run hf auth login
+
+When prompted, paste the personal token. The current Hugging Face CLI supports hf auth login and accepts a user access token created on the token settings page.
+
+Check that login succeeded:
+
+uv run hf auth whoami
+
+It should display the student’s Hugging Face username.
+
+
 
