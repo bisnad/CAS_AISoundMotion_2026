@@ -1,36 +1,167 @@
-Installation Instructions
+CAS AI for Creative Practices
+Installation Guide for Input Session by Giacomo Lepri
 
-These instructions are for downloading and setting up the course material and software for the input session by Giacomo Lepri
+This guide helps you download the input-session materials, install Pure Data (Pd), and install the nn~ object used to run RAVE models in Pd.
 
->> Step 1 : Download Course Material
+IMPORTANT
+- Complete the sections in the order shown.
+- Follow the verification or test step after each installation before continuing.
+- Download the version of each program that matches your operating system.
+- For Pure Data and nn~, download precompiled application or package files. Do not download source code.
+- These instructions cover macOS and Windows.
 
-The Course Material can be downloaded from here: https://drive.google.com/drive/folders/14xMmuIaipBPtCaAKzbML0UnByqoHOGwG
+CONTENTS
+1. Before you start
+2. Download the course material
+3. Install Pure Data
+4. Install the nn~ object
+5. Test the installation
+6. Troubleshooting checklist
 
+======================================================================
+1. BEFORE YOU START
+======================================================================
 
->> Step 2 : Download and Install Pure Data
+You will need:
 
-> Step 2.1 Download Pure Data
+- A computer running macOS or Windows.
+- A stable internet connection.
+- Enough free disk space for the session materials and software.
+- Permission to install applications. You may be asked for an administrator password or approval.
 
-Pure Data can be downloaded from here: https://puredata.info/downloads/pure-data
-Choose a precompiled version (not the source code) that matches your operating system, i.e. Mac OS X, Windows, or Linux.
+Terminology:
+- Pure Data or Pd: a visual programming environment for audio, music, and multimedia.
+- Patch: a Pure Data project file. Patch files use the extension .pd.
+- Object: a reusable component that adds a function to Pure Data. The nn~ object lets Pd use neural-network audio models.
+- DSP: Digital Signal Processing. In Pd, DSP must be turned on before audio can be heard.
+- RAVE: a neural audio model that can be used for real-time audio processing and generation.
 
-> Step 2.2. Install Pure Data
+======================================================================
+2. DOWNLOAD THE COURSE MATERIAL
+======================================================================
 
-MacOS:
-Double click the Pd-0.56-1.dmg file and then drag the Pd-0.56-1.app to the Applications folder
-Windows:
-Double click the pd-0.56-1.windows-installer.exe, select "run anyway", the chose all the fault options during installation setup.
+The session materials are provided in a Google Drive folder.
 
+1. Open a web browser.
+2. Go to: https://drive.google.com/drive/folders/14xMmuIaipBPtCaAKzbML0UnByqoHOGwG
+3. Download the course material.
+4. If the material downloads as a ZIP file, double-click the ZIP file to unpack it.
 
->> Step 3 : Download and Install the nn~ object for Pure Data
+Check your work:
 
-> Step 3.1. Download the nn~ object 
+Open the downloaded course-material folder. It should contain the session files, including Pure Data patches such as 03MAIN_water.pd.
 
-The nn~ object can be downloaded from here: https://github.com/acids-ircam/nn_tilde/releases/tag/v1.6.0
-You find the files to download at the bottom of the page.
-Make sure that you download the version for Pure Data (and not Max MSP), i.e. nn_puredata_macos_ub (MacOS), nn_puredata_window_x64 (Windows), nn_linux_puredata_x86_64 (Linux).
+======================================================================
+3. INSTALL PURE DATA
+======================================================================
 
-> Step 3.2. Install the nn~ object
+Pure Data (Pd) is the application used to open and run the course patches.
 
-Instruction on how to install nn~ can be found here: https://github.com/acids-ircam/nn_tilde?tab=readme-ov-file
-Again, make sure you follow the instructions for Pure Data (and not Max MSP).
+---------------------------------------------------------------------
+3A. DOWNLOAD PURE DATA
+---------------------------------------------------------------------
+
+1. Open a web browser.
+2. Go to: https://puredata.info/downloads/pure-data
+3. Choose a precompiled download for your operating system:
+
+- macOS: choose the macOS disk-image download.
+- Windows: choose the Windows installer.
+
+---------------------------------------------------------------------
+3B. INSTALL PURE DATA ON MACOS
+---------------------------------------------------------------------
+
+1. Find the downloaded file. It may have a name similar to: Pd-0.56-1.dmg
+2. Double-click the .dmg file.
+3. A Finder window opens. Drag the Pd application into the Applications folder.
+4. When copying has finished, open the Applications folder.
+5. Start Pd by double-clicking the Pd application.
+
+If macOS blocks the application:
+
+1. Confirm that you downloaded Pd from the official Pure Data download page.
+2. Control-click the Pd application and choose Open.
+3. Confirm Open in the security dialog, if shown.
+
+---------------------------------------------------------------------
+3C. INSTALL PURE DATA ON WINDOWS
+---------------------------------------------------------------------
+
+1. Find the downloaded installer. It may have a name similar to: pd-0.56-1.windows-installer.exe
+2. Double-click the installer.
+3. If Windows displays a security warning, first confirm that you downloaded the installer from the official Pure Data download page. Then choose Run anyway, if that option is available.
+4. Continue through the installation setup using the default options.
+5. Finish the installation.
+6. Start Pd from the Start menu.
+
+---------------------------------------------------------------------
+3E. FIRST START AND VERIFICATION
+---------------------------------------------------------------------
+
+1. Start Pure Data.
+2. Grant Pd the permissions it requests, if any.
+3. Close Pd after it has opened successfully.
+
+Why this matters:
+
+The first start creates Pd's user folder inside your Documents folder. The nn~ installation may need this folder in the next section.
+
+Success: Pd opens and then closes without an error message.
+
+======================================================================
+4. INSTALL THE NN~ OBJECT
+======================================================================
+
+The nn~ object allows Pure Data patches to load and use neural-network models, including RAVE models.
+
+---------------------------------------------------------------------
+4A. DOWNLOAD NN~
+---------------------------------------------------------------------
+
+1. Open a web browser.
+2. Go to the nn~ release page: https://github.com/acids-ircam/nn_tilde/releases/tag/v1.6.0
+3. Scroll to the bottom of the release page and find the downloadable files in the Assets section.
+4. Download the Pure Data version for your operating system. Do not download a Max MSP version.
+
+Choose one of these files:
+
+- macOS: nn_puredata_macos_ub
+- Windows: nn_puredata_window_x64
+
+---------------------------------------------------------------------
+4B. INSTALL NN~
+---------------------------------------------------------------------
+
+The official nn~ installation instructions are available here: https://github.com/acids-ircam/nn_tilde?tab=readme-ov-file
+
+Important:
+
+- Follow the instructions for Pure Data, not the instructions for Max MSP.
+- Use the downloaded package for your operating system.
+- If the downloaded file is a ZIP archive, unpack it before following the installation instructions.
+- Install the files into the Pd location specified by the official nn~ instructions. 
+- When installation is complete, quit Pd completely if it is still open.
+
+======================================================================
+5. TEST THE INSTALLATION
+======================================================================
+
+Use one of the downloaded session example patches to test that Pd, nn~, and audio output work together.
+
+1. Make sure Pure Data is completely closed.
+2. Open the downloaded course-material folder.
+3. Double-click an example Pure Data patch, for example: 03MAIN_water.pd
+4. Pd starts and opens the patch.
+5. In the main Pd window, turn on the DSP toggle.
+   - The toggle is usually labelled DSP.
+   - It must be enabled before Pd can produce sound.
+6. In the opened Pd patch, press the Start button.
+7. Listen for sound through your selected speakers or headphones.
+
+Success:
+
+- No nn~ or other error messages appear in the Pd console.
+- You hear the expected screaming sound from the example patch.
+
+If both conditions are true, your computer is ready for the input session by Giacomo Lepri.

@@ -1,11 +1,16 @@
 # CAS AI for Creative Practices
 ## Installation Guide for Module 3: AI for Sound and Module 5: AI for Motion
 
-This guide prepares your computer for the course examples. It is written for students who may be new to command-line tools.
+This guide prepares your computer to run the main course examples. 
 
-> **Important:** Complete the sections in order. After each installation, run the verification command before continuing. You need a reliable internet connection and may be asked for administrator permission.
-
-> **macOS support:** Only Apple computers with Apple silicon are supported, for example Macs with M1, M2, M3, or later Apple chips. **Intel-based Macs are not supported** by this course installation.
+> **Important:** 
+>
+> - Follow the steps in the order shown.
+> - Complete the verification check at the end of each installation step before moving on.
+> - Use PowerShell on Windows and Terminal on macOS.
+> - You need an internet connection and may need administrator permission on your computer.
+> - Do not share your Hugging Face access token with anyone.
+> - macOS support: Only Apple computers with Apple silicon are supported. Intel-based Macs are not supported by this course installation.
 
 ---
 
@@ -18,9 +23,8 @@ This guide prepares your computer for the course examples. It is written for stu
 5. [Download the course repositories](#5-download-the-course-repositories)
 6. [Install the course Python environments](#6-install-the-course-python-environments)
 7. [Test course examples](#7-test-course-examples)
-8. [Set up Visual Studio Code trust](#8-set-up-visual-studio-code-trust)
+8. [Set up Visual Studio Code](#8-set-up-visual-studio-code-trust)
 9. [Gain access to Hugging Face models](#9-gain-access-to-hugging-face-models)
-10. [Troubleshooting checklist](#10-troubleshooting-checklist)
 
 ---
 
@@ -64,41 +68,6 @@ You will install these three tools before downloading the course material:
 
 Some Python packages used in the course need compiler tools during installation. On macOS, this step also installs Git.
 
-### Windows: install Visual Studio Build Tools
-
-1. Open **PowerShell**.
-2. Copy the complete command below into PowerShell and press Enter. This is one command; the backtick character (`` ` ``) continues it onto the next line.
-
-```powershell
-winget install --exact --id Microsoft.VisualStudio.2022.BuildTools `
-  --override "--passive --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
-```
-
-3. If Windows shows a UAC permission window, choose **Yes**.
-4. Wait for the installation to finish. This can take some time.
-5. Close every currently open PowerShell window.
-
-#### Verify the compiler
-
-1. Open the **Start** menu.
-2. Search for and open:
-
-```text
-x64 Native Tools Command Prompt for VS 2022
-```
-
-3. Run:
-
-```text
-cl
-```
-
-**Success:** The output begins with text similar to:
-
-```text
-Microsoft (R) C/C++ Optimizing Compiler Version ...
-```
-
 ### macOS with Apple silicon only: install Xcode Command Line Tools
 
 This section applies only to supported Macs with Apple silicon. Intel Macs are not supported.
@@ -126,11 +95,73 @@ git --version
 
 **Success:** Each command displays version information rather than an error.
 
+### Windows: install Visual Studio Build Tools
+
+1. Open **PowerShell**.
+2. Copy the complete command below into PowerShell and press Enter. This is one command; the backtick character (`` ` ``) continues it onto the next line.
+
+```powershell
+winget install --exact --id Microsoft.VisualStudio.2022.BuildTools `
+  --override "--passive --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+```
+
+3. If Windows shows a UAC permission window, choose **Yes**.
+4. Wait for the installation to finish. It may take some time.
+5. Close every currently open PowerShell window.
+
+#### Verify the compiler
+
+1. Open the **Start** menu.
+2. Search for and open:
+
+```text
+x64 Native Tools Command Prompt for VS 2022
+```
+
+3. Run:
+
+```text
+cl
+```
+
+**Success:** The output begins with text similar to:
+
+```text
+Microsoft (R) C/C++ Optimizing Compiler Version ...
+```
+
 ---
 
 ## 3. Install Git and Git LFS
 
 Git downloads the course repositories. Git LFS (*Large File Storage*) downloads large files, such as audio, video, motion-capture data, and model weights.
+
+### macOS with Apple silicon only: install Git LFS
+
+Git was installed in Section 2 with the Xcode Command Line Tools. This section installs Git LFS.
+
+1. Open [git-lfs.com](https://git-lfs.com/) in a web browser.
+2. Download the **Apple Silicon** version of Git LFS for macOS.
+3. Open the downloaded ZIP file to unpack it.
+4. Open **Terminal**.
+5. Run:
+
+```bash
+cd ~/Downloads/git-lfs-*
+sudo ./install.sh
+```
+
+6. Enter your Mac password if requested. 
+
+#### Verify Git LFS
+
+Open a new Terminal window and run:
+
+```bash
+git lfs version
+```
+
+**Success:** You should see a Git LFS version number.
 
 ### Windows: install Git
 
@@ -174,58 +205,11 @@ git lfs version
 
 **Success:** You should see a Git LFS version number.
 
-### macOS with Apple silicon only: install Git LFS
-
-Git was installed in Section 2 with the Xcode Command Line Tools. This section installs Git LFS.
-
-1. Open [git-lfs.com](https://git-lfs.com/) in a web browser.
-2. Download the **Apple Silicon** version of Git LFS for macOS.
-3. Open the downloaded ZIP file to unpack it.
-4. Open **Terminal**.
-5. Run:
-
-```bash
-cd ~/Downloads/git-lfs-*
-sudo ./install.sh
-```
-
-6. Enter your Mac password if requested. Nothing appears while you type the password; this is normal. Press Enter when finished.
-
-#### Verify Git LFS
-
-Open a new Terminal window and run:
-
-```bash
-git lfs version
-```
-
-**Success:** You should see a Git LFS version number.
-
 ---
 
 ## 4. Install uv
 
 [`uv`](https://docs.astral.sh/uv/) manages the Python environments and packages used by the course examples.
-
-### Windows: install uv
-
-1. Open **PowerShell**.
-2. Run:
-
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
-
-3. When installation finishes, close PowerShell.
-4. Open a **new** PowerShell window.
-
-#### Verify uv
-
-```powershell
-uv --version
-```
-
-**Success:** You should see a uv version number.
 
 ### macOS with Apple silicon only: install uv
 
@@ -247,7 +231,27 @@ uv --version
 
 **Success:** You should see a uv version number.
 
-> If Terminal says `uv: command not found`, close Terminal completely, open it again, and retry. If it still fails, contact the course team.
+> If Terminal says `uv: command not found`, close Terminal completely, open it again, and retry.
+
+### Windows: install uv
+
+1. Open **PowerShell**.
+2. Run:
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+3. When installation finishes, close PowerShell.
+4. Open a **new** PowerShell window.
+
+#### Verify uv
+
+```powershell
+uv --version
+```
+
+**Success:** You should see a uv version number.
 
 ---
 
@@ -258,15 +262,13 @@ There are two course repositories:
 | Repository | Status | Contents |
 |---|---|---|
 | `CAS_AISoundMotion_2026` | **Required** | Source code, examples, and installation scripts. |
-| `CAS_AISoundMotion_Data_2026` | **Optional** | Additional course data, including video, audio, motion-capture files, and model weights. |
+| `CAS_AISoundMotion_Data_2026` | **Optional** | Additional course data, including video, audio, motion-capture files, and model weights. This data repository can be large. |
 
-You **must** download `CAS_AISoundMotion_2026`. Download `CAS_AISoundMotion_Data_2026` only when you are instructed to do so for a particular class activity or example.
-
-> The optional data repository can be large. Downloading it requires a stable internet connection and sufficient free disk space.
+Only downloading `CAS_AISoundMotion_2026` is mandatory; downloading  `CAS_AISoundMotion_Data_2026` is optional.
 
 ### Create a course folder
 
-1. Open **File Explorer** on Windows or **Finder** on macOS.
+1. Open **Finder** on macOS or **File Explorer** on Windows.
 2. Choose an easy-to-find location, for example **Documents**.
 3. Create a new folder, for example:
 
@@ -278,12 +280,12 @@ CAS_AI_Course
 
 Helpful ways to get a folder path:
 
-- **Windows:** Click the File Explorer address bar and copy the displayed path.
 - **macOS:** Hold Option while right-clicking the folder and choose **Copy ... as Pathname** if available. Alternatively, type `cd ` in Terminal and drag the folder into the Terminal window.
+- **Windows:** Click the File Explorer address bar and copy the displayed path.
 
 ### Clone the required course repository
 
-1. Open **PowerShell** on Windows or **Terminal** on macOS.
+1. Open **Terminal** on macOS or **PowerShell** on Windows.
 2. Move into your course folder. Replace `<path-to-your-course-folder>` with the folder path you created.
 
 ```bash
@@ -292,14 +294,14 @@ cd <path-to-your-course-folder>
 
 Examples:
 
-```powershell
-# Windows
-cd C:\Users\YourName\Documents\CAS_AI_Course
-```
-
 ```bash
 # macOS
 cd ~/Documents/CAS_AI_Course
+```
+
+```powershell
+# Windows
+cd C:\Users\YourName\Documents\CAS_AI_Course
 ```
 
 3. Download the required course code repository:
@@ -320,9 +322,7 @@ CAS_AISoundMotion_2026
 
 ### Optional: clone the course data repository
 
-Download this repository only if you have been instructed to use the additional data files.
-
-1. Make sure PowerShell or Terminal is still in your course folder. If necessary, run:
+1. Make sure Terminal or PowerShell is still in your course folder. If necessary, run:
 
 ```bash
 cd <path-to-your-course-folder>
@@ -378,7 +378,7 @@ run_installation_macos-cpu.sh
 ```
 
 3. Terminal opens and runs the script.
-4. Wait until the script completes, and read the final message in Terminal.
+4. Wait until the script completes.
 
 ### Windows: run the installation script
 
@@ -411,13 +411,11 @@ Each example has a launcher script:
 - **macOS:** `.sh` file
 - **Windows:** `.bat` file
 
-When you run an example for the first time, `uv` automatically creates a Python environment and downloads the required packages. This can take a long time, particularly for examples that use machine-learning libraries or models. Later runs should be much faster.
+When you run an example for the first time, `uv` automatically creates a Python environment and downloads the required packages. This can take a long time, particularly for examples that use machine-learning libraries or models. Later runs are much faster.
 
-For now, only confirm that applications start. Do not wait for long training processes to finish. To stop a training example, close the Terminal or command window it opened.
+For now, only confirm that applications start. Do not wait for long training processes to finish. To stop an example, close the Terminal or command window it opened.
 
-> Some examples may require files from the optional `CAS_AISoundMotion_Data_2026` repository. If an example reports missing data, download that repository as described in [Section 5](#5-download-the-course-repositories).
-
-> Examples that use gated Hugging Face models require the setup in [Section 9](#9-gain-access-to-hugging-face-models).
+> Examples that use gated Hugging Face models require the setup in [Section 9](#9-gain-access-to-hugging-face-models). These examples are marked by an "*" in the lists below.
 
 ### Module 3: AI for Sound
 
@@ -435,12 +433,12 @@ AudioClustering/audio_clustering.sh
 AudioNearestNeighbors/audio_nearest_neighbors.sh
 AudioRepresentation/audio_representation_hello_world.sh
 HuggingFace/audio_ldm2_hello_world.sh
-HuggingFace/stable_audio_open1_hello_world.sh
+HuggingFace/stable_audio_open1_hello_world.sh *
 SpectralPlayground/spectral_playground_hello_world.sh
-StableAudio3/stable_audio_3_gui_inpaint_continue.sh
-StableAudio3/stable_audio_3_gui_interpolation.sh
-StableAudio3/stable_audio_3_gui_text_to_audio.sh
-StableAudio3/stable_audio_3_hello_world.sh
+StableAudio3/stable_audio_3_gui_inpaint_continue.sh *
+StableAudio3/stable_audio_3_gui_interpolation.sh *
+StableAudio3/stable_audio_3_gui_text_to_audio.sh *
+StableAudio3/stable_audio_3_hello_world.sh *
 ```
 
 #### Windows launchers
@@ -455,12 +453,12 @@ AudioClustering/audio_clustering.bat
 AudioNearestNeighbors/audio_nearest_neighbors.bat
 AudioRepresentation/audio_representation_hello_world.bat
 HuggingFace/audio_ldm2_hello_world.bat
-HuggingFace/stable_audio_open1_hello_world.bat
+HuggingFace/stable_audio_open1_hello_world.bat *
 SpectralPlayground/spectral_playground_hello_world.bat
-StableAudio3/stable_audio_3_gui_inpaint_continue.bat
-StableAudio3/stable_audio_3_gui_interpolation.bat
-StableAudio3/stable_audio_3_gui_text_to_audio.bat
-StableAudio3/stable_audio_3_hello_world.bat
+StableAudio3/stable_audio_3_gui_inpaint_continue.bat *
+StableAudio3/stable_audio_3_gui_interpolation.bat *
+StableAudio3/stable_audio_3_gui_text_to_audio.bat *
+StableAudio3/stable_audio_3_hello_world.bat *
 ```
 
 ### Module 5: AI for Motion
@@ -513,7 +511,7 @@ SensorRecorder/sensor_recorder.bat
 
 ---
 
-## 8. Set up Visual Studio Code trust
+## 8. Set up Visual Studio Code
 
 Visual Studio Code may ask whether you trust the course folders. Trust is required before the editor can run certain project features and scripts.
 
@@ -616,33 +614,3 @@ uv run hf auth whoami
 
 ---
 
-## 10. Troubleshooting checklist
-
-Before contacting the course team, check the following:
-
-1. On macOS, confirm that your computer has Apple silicon. Intel Macs are not supported.
-2. Open a **new** PowerShell or Terminal window after installing compiler tools, Git, Git LFS, or `uv`.
-3. Confirm that the relevant verification command displays a version number.
-4. Confirm that the required repository folder exists:
-
-   ```text
-   CAS_AISoundMotion_2026
-   ```
-
-5. Download `CAS_AISoundMotion_Data_2026` only when it is needed. If an example reports missing course data, download it using [Section 5](#5-download-the-course-repositories).
-6. If large optional course files are missing, confirm that Git LFS is installed.
-7. On Windows, choose the correct installer:
-   - `cu126` for a PC with an NVIDIA GPU.
-   - `cpu` for a PC without an NVIDIA GPU.
-8. Allow additional time when launching an example for the first time: `uv` may need to download and install many packages.
-9. Complete the Hugging Face access and login steps before launching examples that require Stable Audio models.
-10. When reporting a problem, include:
-   - Your operating system and version.
-   - Your Mac chip, if you are using macOS.
-   - The exact command or script you ran.
-   - A screenshot or copied text of the complete error message.
-   - Whether your Windows PC has an NVIDIA GPU.
-
----
-
-**End of installation guide**
