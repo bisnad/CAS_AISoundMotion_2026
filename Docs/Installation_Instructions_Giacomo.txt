@@ -1,0 +1,36 @@
+Installation Instructions
+
+These instructions are for downloading and setting up the course material and software for the input session by Giacomo Lepri
+
+>> Step 1 : Download Course Material
+
+The Course Material can be downloaded from here: https://drive.google.com/drive/folders/14xMmuIaipBPtCaAKzbML0UnByqoHOGwG
+
+
+>> Step 2 : Download and Install Pure Data
+
+> Step 2.1 Download Pure Data
+
+Pure Data can be downloaded from here: https://puredata.info/downloads/pure-data
+Choose a precompiled version (not the source code) that matches your operating system, i.e. Mac OS X, Windows, or Linux.
+
+> Step 2.2. Install Pure Data
+
+MacOS:
+Double click the Pd-0.56-1.dmg file and then drag the Pd-0.56-1.app to the Applications folder
+Windows:
+Double click the pd-0.56-1.windows-installer.exe, select "run anyway", the chose all the fault options during installation setup.
+
+
+>> Step 3 : Download and Install the nn~ object for Pure Data
+
+> Step 3.1. Download the nn~ object 
+
+The nn~ object can be downloaded from here: https://github.com/acids-ircam/nn_tilde/releases/tag/v1.6.0
+You find the files to download at the bottom of the page.
+Make sure that you download the version for Pure Data (and not Max MSP), i.e. nn_puredata_macos_ub (MacOS), nn_puredata_window_x64 (Windows), nn_linux_puredata_x86_64 (Linux).
+
+> Step 3.2. Install the nn~ object
+
+Instruction on how to install nn~ can be found here: https://github.com/acids-ircam/nn_tilde?tab=readme-ov-file
+Again, make sure you follow the instructions for Pure Data (and not Max MSP).

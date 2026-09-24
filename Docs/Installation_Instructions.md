@@ -12,8 +12,8 @@ This guide prepares your computer for the course examples. It is written for stu
 ## Contents
 
 1. [Before you start](#1-before-you-start)
-2. [Install Git and Git LFS](#2-install-git-and-git-lfs)
-3. [Install a compilation environment](#3-install-a-compilation-environment)
+2. [Install a compilation environment](#2-install-a-compilation-environment)
+3. [Install Git and Git LFS](#3-install-git-and-git-lfs)
 4. [Install uv](#4-install-uv)
 5. [Download the course repositories](#5-download-the-course-repositories)
 6. [Install the course Python environments](#6-install-the-course-python-environments)
@@ -44,8 +44,8 @@ You will install these three tools before downloading the course material:
 
 | Tool | Why you need it |
 |---|---|
+| **Compilation environment** | Lets Python install components that must be built on your computer. On macOS, it also installs Git. |
 | **Git** | Downloads and updates the course files. |
-| **Compilation environment** | Lets Python install components that must be built on your computer. |
 | **uv** | Creates and runs the Python environments used by the examples. |
 
 ### Terms used in this guide
@@ -60,7 +60,75 @@ You will install these three tools before downloading the course material:
 
 ---
 
-## 2. Install Git and Git LFS
+## 2. Install a compilation environment
+
+Some Python packages used in the course need compiler tools during installation. On macOS, this step also installs Git.
+
+### Windows: install Visual Studio Build Tools
+
+1. Open **PowerShell**.
+2. Copy the complete command below into PowerShell and press Enter. This is one command; the backtick character (`` ` ``) continues it onto the next line.
+
+```powershell
+winget install --exact --id Microsoft.VisualStudio.2022.BuildTools `
+  --override "--passive --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+```
+
+3. If Windows shows a UAC permission window, choose **Yes**.
+4. Wait for the installation to finish. This can take some time.
+5. Close every currently open PowerShell window.
+
+#### Verify the compiler
+
+1. Open the **Start** menu.
+2. Search for and open:
+
+```text
+x64 Native Tools Command Prompt for VS 2022
+```
+
+3. Run:
+
+```text
+cl
+```
+
+**Success:** The output begins with text similar to:
+
+```text
+Microsoft (R) C/C++ Optimizing Compiler Version ...
+```
+
+### macOS with Apple silicon only: install Xcode Command Line Tools
+
+This section applies only to supported Macs with Apple silicon. Intel Macs are not supported.
+
+1. Open **Terminal**.
+2. Run:
+
+```bash
+xcode-select --install
+```
+
+3. A macOS dialog appears. Choose **Install**.
+4. Accept any licence or permission requests and wait until installation completes.
+5. Close Terminal, then open a new Terminal window.
+
+#### Verify the compiler and Git
+
+Run these commands one at a time:
+
+```bash
+clang --version
+make --version
+git --version
+```
+
+**Success:** Each command displays version information rather than an error.
+
+---
+
+## 3. Install Git and Git LFS
 
 Git downloads the course repositories. Git LFS (*Large File Storage*) downloads large files, such as audio, video, motion-capture data, and model weights.
 
@@ -106,13 +174,9 @@ git lfs version
 
 **Success:** You should see a Git LFS version number.
 
-### macOS with Apple silicon only: install Git and Git LFS
+### macOS with Apple silicon only: install Git LFS
 
-This section applies only to supported Macs with Apple silicon. Intel Macs are not supported.
-
-Git is installed with Apple's Xcode Command Line Tools. Install those tools in [Section 3](#3-install-a-compilation-environment) before checking Git.
-
-#### Install Git LFS
+Git was installed in Section 2 with the Xcode Command Line Tools. This section installs Git LFS.
 
 1. Open [git-lfs.com](https://git-lfs.com/) in a web browser.
 2. Download the **Apple Silicon** version of Git LFS for macOS.
@@ -127,82 +191,15 @@ sudo ./install.sh
 
 6. Enter your Mac password if requested. Nothing appears while you type the password; this is normal. Press Enter when finished.
 
-#### Verify Git and Git LFS
+#### Verify Git LFS
 
-After completing Section 3, open a new Terminal window and run:
+Open a new Terminal window and run:
 
 ```bash
-git --version
 git lfs version
 ```
 
-**Success:** Both commands display version numbers.
-
----
-
-## 3. Install a compilation environment
-
-Some Python packages used in the course need compiler tools during installation.
-
-### Windows: install Visual Studio Build Tools
-
-1. Open **PowerShell**.
-2. Copy the complete command below into PowerShell and press Enter. This is one command; the backtick character (`` ` ``) continues it onto the next line.
-
-```powershell
-winget install --exact --id Microsoft.VisualStudio.2022.BuildTools `
-  --override "--passive --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
-```
-
-3. If Windows shows a UAC permission window, choose **Yes**.
-4. Wait for the installation to finish. This can take some time.
-5. Close every currently open PowerShell window.
-
-#### Verify the compiler
-
-1. Open the **Start** menu.
-2. Search for and open:
-
-```text
-x64 Native Tools Command Prompt for VS 2022
-```
-
-3. Run:
-
-```text
-cl
-```
-
-**Success:** The output begins with text similar to:
-
-```text
-Microsoft (R) C/C++ Optimizing Compiler Version ...
-```
-
-### macOS with Apple silicon only: install Xcode Command Line Tools
-
-1. Open **Terminal**.
-2. Run:
-
-```bash
-xcode-select --install
-```
-
-3. A macOS dialog appears. Choose **Install**.
-4. Accept any licence or permission requests and wait until installation completes.
-5. Close Terminal, then open a new Terminal window.
-
-#### Verify the tools
-
-Run these commands one at a time:
-
-```bash
-clang --version
-make --version
-git --version
-```
-
-**Success:** Each command displays version information rather than an error.
+**Success:** You should see a Git LFS version number.
 
 ---
 
@@ -239,7 +236,7 @@ uv --version
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-3. When installation finishes, close Terminal.
+3. When the installation finishes, close Terminal.
 4. Open a **new** Terminal window.
 
 #### Verify uv
@@ -347,7 +344,7 @@ Your course folder should now also contain:
 CAS_AISoundMotion_Data_2026
 ```
 
-> If the download skips large files or shows Git LFS errors, repeat the Git LFS installation in [Section 2](#2-install-git-and-git-lfs).
+> If the download skips large files or shows Git LFS errors, repeat the Git LFS installation in [Section 3](#3-install-git-and-git-lfs).
 
 ### macOS only: open `.sh` files in Terminal
 
@@ -624,7 +621,7 @@ uv run hf auth whoami
 Before contacting the course team, check the following:
 
 1. On macOS, confirm that your computer has Apple silicon. Intel Macs are not supported.
-2. Open a **new** PowerShell or Terminal window after installing Git, compiler tools, or `uv`.
+2. Open a **new** PowerShell or Terminal window after installing compiler tools, Git, Git LFS, or `uv`.
 3. Confirm that the relevant verification command displays a version number.
 4. Confirm that the required repository folder exists:
 

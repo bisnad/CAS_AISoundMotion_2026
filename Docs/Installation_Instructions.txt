@@ -14,8 +14,8 @@ IMPORTANT
 
 CONTENTS
 1. Before you start
-2. Install Git and Git LFS
-3. Install a compilation environment
+2. Install a compilation environment
+3. Install Git and Git LFS
 4. Install uv
 5. Download the course repositories
 6. Install the course Python environments
@@ -42,8 +42,8 @@ How to check your Mac:
 
 You will install three tools before downloading the course material:
 
-1. Git: downloads and updates course files.
-2. A compilation environment: lets Python install components that need to be built on your computer.
+1. A compilation environment: lets Python install components that need to be built on your computer.
+2. Git: downloads and updates course files.
 3. uv: installs and runs the Python environments used by the examples.
 
 Terminology:
@@ -54,99 +54,13 @@ Terminology:
 - Script: a file that starts an installation or course example. Windows scripts end in .bat; macOS scripts end in .sh.
 
 ======================================================================
-2. INSTALL GIT AND GIT LFS
+2. INSTALL A COMPILATION ENVIRONMENT
 ======================================================================
 
-Git downloads the course repositories. Git LFS (Large File Storage) downloads large files such as audio, video, motion-capture data, and model weights.
+Some Python packages used in the course need compiler tools during installation. On macOS, this step also installs Git.
 
 ---------------------------------------------------------------------
-2A. WINDOWS: INSTALL GIT
----------------------------------------------------------------------
-
-1. Open the Start menu.
-2. Search for PowerShell.
-3. Open PowerShell.
-4. Run this command:
-
-winget install --exact --id Git.Git --source winget
-
-5. If Windows asks for permission through a User Account Control (UAC) window, choose Yes.
-6. When the installation finishes, close PowerShell.
-
-Verify Git:
-
-1. Open a new PowerShell window.
-2. Run:
-
-git --version
-
-Success: You see a version number, for example, "git version 2.x.x".
-
----------------------------------------------------------------------
-2B. WINDOWS: INSTALL GIT LFS
----------------------------------------------------------------------
-
-1. Open a web browser.
-2. Go to:
-
-https://git-lfs.com/
-
-3. Download and install the Windows version of Git LFS.
-4. When installation is complete, open a new PowerShell window.
-5. Run:
-
-git lfs install
-
-Verify Git LFS:
-
-Run:
-
-git lfs version
-
-Success: You see a Git LFS version number.
-
----------------------------------------------------------------------
-2C. MACOS WITH APPLE SILICON ONLY: INSTALL GIT AND GIT LFS
----------------------------------------------------------------------
-
-This section applies only to Apple silicon Macs. Intel Macs are not supported.
-
-Git is installed together with Apple's Xcode Command Line Tools. Install those tools in Section 3 before checking Git.
-
-Install Git LFS:
-
-1. Open a web browser.
-2. Go to:
-
-https://git-lfs.com/
-
-3. Download the Apple Silicon version of Git LFS for macOS.
-4. Open the downloaded ZIP file to unpack it.
-5. Open Terminal.
-6. Run:
-
-cd ~/Downloads/git-lfs-*
-sudo ./install.sh
-
-7. Enter your Mac password if requested. The password does not appear while you type. Press Enter when finished.
-
-Verify Git and Git LFS after completing Section 3:
-
-Open a new Terminal window and run:
-
-git --version
-git lfs version
-
-Success: Both commands show version numbers.
-
-======================================================================
-3. INSTALL A COMPILATION ENVIRONMENT
-======================================================================
-
-Some Python packages used in the course need compiler tools during installation.
-
----------------------------------------------------------------------
-3A. WINDOWS: INSTALL VISUAL STUDIO BUILD TOOLS
+2A. WINDOWS: INSTALL VISUAL STUDIO BUILD TOOLS
 ---------------------------------------------------------------------
 
 1. Open PowerShell.
@@ -177,8 +91,10 @@ Microsoft (R) C/C++ Optimizing Compiler Version ...
 If you see this text, the compiler is available.
 
 ---------------------------------------------------------------------
-3B. MACOS WITH APPLE SILICON ONLY: INSTALL XCODE COMMAND LINE TOOLS
+2B. MACOS WITH APPLE SILICON ONLY: INSTALL XCODE COMMAND LINE TOOLS
 ---------------------------------------------------------------------
+
+This section applies only to supported Macs with Apple silicon. Intel Macs are not supported.
 
 1. Open Terminal.
 2. Run:
@@ -189,7 +105,7 @@ xcode-select --install
 4. Accept any licence or permission requests and wait for the installation to finish.
 5. Close Terminal and open a new Terminal window.
 
-Verify the tools:
+Verify the compiler and Git:
 
 Run these commands one at a time:
 
@@ -198,6 +114,87 @@ make --version
 git --version
 
 Success: Each command shows version information rather than an error.
+
+======================================================================
+3. INSTALL GIT AND GIT LFS
+======================================================================
+
+Git downloads the course repositories. Git LFS (Large File Storage) downloads large files such as audio, video, motion-capture data, and model weights.
+
+---------------------------------------------------------------------
+3A. WINDOWS: INSTALL GIT
+---------------------------------------------------------------------
+
+1. Open the Start menu.
+2. Search for PowerShell.
+3. Open PowerShell.
+4. Run this command:
+
+winget install --exact --id Git.Git --source winget
+
+5. If Windows asks for permission through a User Account Control (UAC) window, choose Yes.
+6. When the installation finishes, close PowerShell.
+
+Verify Git:
+
+1. Open a new PowerShell window.
+2. Run:
+
+git --version
+
+Success: You see a version number, for example, "git version 2.x.x".
+
+---------------------------------------------------------------------
+3B. WINDOWS: INSTALL GIT LFS
+---------------------------------------------------------------------
+
+1. Open a web browser.
+2. Go to:
+
+https://git-lfs.com/
+
+3. Download and install the Windows version of Git LFS.
+4. When installation is complete, open a new PowerShell window.
+5. Run:
+
+git lfs install
+
+Verify Git LFS:
+
+Run:
+
+git lfs version
+
+Success: You see a Git LFS version number.
+
+---------------------------------------------------------------------
+3C. MACOS WITH APPLE SILICON ONLY: INSTALL GIT LFS
+---------------------------------------------------------------------
+
+Git was installed in Section 2 with the Xcode Command Line Tools. This section installs Git LFS.
+
+1. Open a web browser.
+2. Go to:
+
+https://git-lfs.com/
+
+3. Download the Apple Silicon version of Git LFS for macOS.
+4. Open the downloaded ZIP file to unpack it.
+5. Open Terminal.
+6. Run:
+
+cd ~/Downloads/git-lfs-*
+sudo ./install.sh
+
+7. Enter your Mac password if requested. The password does not appear while you type. Press Enter when finished.
+
+Verify Git LFS:
+
+Open a new Terminal window and run:
+
+git lfs version
+
+Success: You see a Git LFS version number.
 
 ======================================================================
 4. INSTALL UV
@@ -323,7 +320,7 @@ Your course folder should now also contain:
 
 CAS_AISoundMotion_Data_2026
 
-If the download appears to skip large files or shows Git LFS errors, repeat the Git LFS installation in Section 2.
+If the download appears to skip large files or shows Git LFS errors, repeat the Git LFS installation in Section 3.
 
 ---------------------------------------------------------------------
 5D. MACOS ONLY: OPEN .SH FILES IN TERMINAL
