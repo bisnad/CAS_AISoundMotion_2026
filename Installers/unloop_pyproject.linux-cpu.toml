@@ -1,7 +1,7 @@
 [project]
 name = "unloop"
 version = "0.1.0"
-description = "Unloop generative audio project (Windows, CUDA)"
+description = "Unloop generative audio project (Linux, CPU-only)"
 requires-python = ">=3.12"
 dependencies = [
     "torch>=2.6.0",
@@ -14,7 +14,7 @@ dependencies = [
     "pyharp",
     "torch_pitch_shift",
     "gradio>=6.13.0,<7",
-    "pydantic>=2.10.6",
+    "pydantic==2.10.6",
     "spaces",
     "static-ffmpeg",
 ]
@@ -32,12 +32,12 @@ setup = "unloop-setup"
 run = ["setup", "python app.py"]
 
 [[tool.uv.index]]
-name = "pytorch-cu128"
-url = "https://download.pytorch.org/whl/cu128"
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
 [tool.uv.sources]
-torch = { index = "pytorch-cu128" }
+torch = { index = "pytorch-cpu" }
 wavebeat = { git = "https://github.com/hugofloresgarcia/wavebeat" }
 lac = { path = "third_party/lac", editable = true }
 descript-audiotools = { path = "audiotools", editable = true }
