@@ -1,0 +1,30 @@
+[project]
+name = "unloop"
+version = "0.1.0"
+description = "Unloop generative audio project"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.6.0",
+    "argbind>=0.3.2",
+    "numpy>=2.1.0",
+    "loralib",
+    "wavebeat",
+    "lac",
+    "descript-audiotools>=0.7.3",
+    "pyharp",
+    "torch_pitch_shift",
+    "gradio>=6.13.0,<7",
+    "pydantic==2.10.6",
+    "spaces",
+    "static-ffmpeg",
+]
+
+[tool.uv.sources]
+wavebeat = { git = "https://github.com/hugofloresgarcia/wavebeat" }
+lac = { path = "third_party/lac", editable = true }
+descript-audiotools = { path = "audiotools", editable = true }
+pyharp = { path = "src/pyharp", editable = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

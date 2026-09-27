@@ -1,0 +1,81 @@
+Metadata-Version: 2.4
+Name: unloop
+Version: 0.0.1
+Summary: Generative Music Modeling.
+Home-page: https://github.com/hugofloresgarcia/unloop
+Author: Hugo Flores García, Prem Seetharaman
+Author-email: hugggofloresgarcia@gmail.com
+License: MIT
+Classifier: Intended Audience :: Developers
+Classifier: Natural Language :: English
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Topic :: Artistic Software
+Classifier: Topic :: Multimedia
+Classifier: Topic :: Multimedia :: Sound/Audio
+Classifier: Topic :: Multimedia :: Sound/Audio :: Editors
+Classifier: Topic :: Software Development :: Libraries
+Requires-Python: >=3.13
+Description-Content-Type: text/markdown
+Requires-Dist: torch>=2.5.1
+Requires-Dist: argbind>=0.3.2
+Requires-Dist: numpy>=2.1.0
+Requires-Dist: wavebeat @ git+https://github.com/hugofloresgarcia/wavebeat
+Requires-Dist: gradio
+Requires-Dist: loralib
+Requires-Dist: torch_pitch_shift
+Requires-Dist: plotly
+Requires-Dist: pydantic==2.10.6
+Requires-Dist: spaces
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: license
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
+UNLOOP _2026_
+
+python_version: 3.13
+
+————————————————————————
+Installation
+————————————————————————
+
+For MacOS
+- Open the terminal
+- Type "sh install_MacOS.sh"
+- Download ALL the models (not LORA) from here: https://huggingface.co/hugggof/vampnet/tree/main
+- Move them to the folder models/unloop
+- Everything is stored locally below the main folder.
+- Done.
+
+
+For Windows 11
+- Run install_Windows.bat"
+- Download ALL the models (not LORA) from here: https://huggingface.co/hugggof/vampnet/tree/main
+- Move them to the folder models/unloop
+- Everything is stored locally below the main folder.
+- Done.
+
+
+————————————————————————
+Run in the browser
+————————————————————————
+
+For MacOS
+- Open the terminal
+- Type "sh run_app_MacOS.sh"
+- When loaded, find the URL in the terminal: http://127.0.0.1:7860
+- Open your preferred browser to this URL: http://127.0.0.1:7860
+- Done.
+
+
+For Windows 11
+- Run "run_app_Windows.bat"
+- When loaded, find the URL in the terminal: http://127.0.0.1:7860
+- Open your preferred browser to this URL: http://127.0.0.1:7860
+- Done.

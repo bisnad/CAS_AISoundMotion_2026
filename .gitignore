@@ -12,3 +12,5 @@ Software/AI_Motion/MotionTracking/Yolo/ObjectDetection/models/*
 __pycache__/
 /Software/AI_Sound/HuggingFace/results
 /Software/AI_Sound/DanceDiffusion/models
+/Software/AI_Sound/Unloop/models
+/Software/AI_Sound/Unloop/scratch/feedback_batches

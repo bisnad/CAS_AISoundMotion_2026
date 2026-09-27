@@ -1,0 +1,10 @@
+torch>=2.5.1
+argbind>=0.3.2
+numpy>=2.1.0
+wavebeat @ git+https://github.com/hugofloresgarcia/wavebeat
+gradio
+loralib
+torch_pitch_shift
+plotly
+pydantic==2.10.6
+spaces
