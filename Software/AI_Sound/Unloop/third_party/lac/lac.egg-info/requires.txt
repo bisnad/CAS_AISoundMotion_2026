@@ -1,0 +1,17 @@
+descript-audiotools>=0.7.3
+einops
+
+[dev]
+pytest
+pytest-cov
+pynvml
+psutil
+pandas
+onnx
+onnx-simplifier
+seaborn
+jupyterlab
+watchdog
+pesq
+tabulate
+encodec

@@ -1,0 +1,54 @@
+Metadata-Version: 2.4
+Name: lac
+Version: 0.0.1
+Summary: A high-quality general neural audio codec.
+Home-page: https://github.com/descriptinc/lyrebird-audio-codec
+Author: Prem Seetharaman, Rithesh Kumar
+Author-email: prem@descript.com
+License: MIT
+Keywords: audio,compression,machine learning
+Classifier: Intended Audience :: Developers
+Classifier: Natural Language :: English
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Topic :: Artistic Software
+Classifier: Topic :: Multimedia
+Classifier: Topic :: Multimedia :: Sound/Audio
+Classifier: Topic :: Multimedia :: Sound/Audio :: Editors
+Classifier: Topic :: Software Development :: Libraries
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: descript-audiotools>=0.7.3
+Requires-Dist: einops
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: pytest-cov; extra == "dev"
+Requires-Dist: pynvml; extra == "dev"
+Requires-Dist: psutil; extra == "dev"
+Requires-Dist: pandas; extra == "dev"
+Requires-Dist: onnx; extra == "dev"
+Requires-Dist: onnx-simplifier; extra == "dev"
+Requires-Dist: seaborn; extra == "dev"
+Requires-Dist: jupyterlab; extra == "dev"
+Requires-Dist: pandas; extra == "dev"
+Requires-Dist: watchdog; extra == "dev"
+Requires-Dist: pesq; extra == "dev"
+Requires-Dist: tabulate; extra == "dev"
+Requires-Dist: encodec; extra == "dev"
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: keywords
+Dynamic: license
+Dynamic: license-file
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: summary
+
+# Lyrebird Audio Codec (.lac)
+
+This repository contains training and inference scripts 
+for the Lyrebird audio codec, a high fidelity general 
+neural audio codec.

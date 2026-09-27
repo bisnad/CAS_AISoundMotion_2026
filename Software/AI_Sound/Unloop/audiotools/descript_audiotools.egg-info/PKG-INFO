@@ -1,0 +1,135 @@
+Metadata-Version: 2.4
+Name: descript-audiotools
+Version: 0.7.3
+Summary: Utilities for handling audio.
+Author: Prem Seetharaman, Lucas Gestin
+Author-email: prem@descript.com
+License: MIT
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Education
+Classifier: Intended Audience :: Science/Research
+Classifier: Natural Language :: English
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Topic :: Artistic Software
+Classifier: Topic :: Multimedia
+Classifier: Topic :: Multimedia :: Sound/Audio
+Classifier: Topic :: Multimedia :: Sound/Audio :: Editors
+Classifier: Topic :: Software Development :: Libraries
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: argbind
+Requires-Dist: numpy
+Requires-Dist: soundfile
+Requires-Dist: pyloudnorm
+Requires-Dist: importlib-resources
+Requires-Dist: scipy
+Requires-Dist: torch
+Requires-Dist: julius
+Requires-Dist: torchaudio
+Requires-Dist: ffmpy
+Requires-Dist: ipython
+Requires-Dist: rich
+Requires-Dist: matplotlib
+Requires-Dist: librosa
+Requires-Dist: pystoi
+Requires-Dist: torch_stoi
+Requires-Dist: flatten-dict
+Requires-Dist: markdown2
+Requires-Dist: randomname
+Requires-Dist: pytorch-ignite
+Requires-Dist: tensorboard
+Requires-Dist: tqdm
+Provides-Extra: tests
+Requires-Dist: pytest; extra == "tests"
+Requires-Dist: pytest-cov; extra == "tests"
+Provides-Extra: docs
+Requires-Dist: sphinx; extra == "docs"
+Requires-Dist: sphinx-rtd-theme; extra == "docs"
+Requires-Dist: myst-parser; extra == "docs"
+Requires-Dist: myst-nb; extra == "docs"
+Requires-Dist: sphinx-multiversion; extra == "docs"
+Provides-Extra: whisper
+Requires-Dist: transformers>=4.23.1; extra == "whisper"
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: license
+Dynamic: license-file
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: summary
+
+# AudioTools
+
+Object-oriented handling of audio signals, with fast augmentation routines, batching, padding, and more.
+
+## Installation
+```
+pip install git+https://github.com/descriptinc/audiotools
+```
+OR
+```bash
+git clone https://github.com/descriptinc/audiotools
+cd audiotools
+pip install .
+```
+
+## Documentation
+
+For documentation, see [the docs](https://descriptinc.github.io/audiotools/).
+
+### Deploying documentation
+
+To build the documentation, do:
+
+```bash
+cd docs/
+make html
+open _build/html/index.html
+```
+
+Once you're satisfied with your docs, push them to the gh-pages branch via
+
+```bash
+cd docs
+bash publish_docs.sh
+```
+
+## Quickstart
+
+```python
+import audiotools
+from audiotools import AudioSignal
+
+signal = AudioSignal("tests/audio/spk/f10_script4_produced.wav", offset=5, duration=5)
+signal.play() # Play back the signal in your terminal using ffplay
+
+signal.low_pass(8000) # Low-pass the signal
+signal.play() # Play back the low-passed version of the signal
+```
+
+For more, see the [documentation](##Documentation).
+
+### Install hooks
+
+First install the pre-commit util:
+
+https://pre-commit.com/#install
+
+    pip install pre-commit  # with pip
+    brew install pre-commit  # on Mac
+
+Then install the git hooks
+
+    pre-commit install
+    # check .pre-commit-config.yaml for details of hooks
+
+Upon `git commit`, the pre-commit hooks will be run automatically on the stage files (i.e. added by `git add`)
+
+**N.B. By default, pre-commit checks only run on staged files**
+
+If you need to run it on all files:
+
+    pre-commit run --all-files

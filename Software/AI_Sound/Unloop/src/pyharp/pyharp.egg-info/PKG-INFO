@@ -1,0 +1,15 @@
+Metadata-Version: 2.4
+Name: pyharp
+Version: 0.3.1
+Home-page: https://github.com/TEAMuP-dev/pyharp
+Author: TEAMuP
+Author-email: fcwitkow@ur.rochester.edu
+License-File: LICENSE
+Requires-Dist: gradio<7,>=6.13.0
+Requires-Dist: descript-audiotools
+Requires-Dist: symusic<0.6,>=0.5.7
+Dynamic: author
+Dynamic: author-email
+Dynamic: home-page
+Dynamic: license-file
+Dynamic: requires-dist
