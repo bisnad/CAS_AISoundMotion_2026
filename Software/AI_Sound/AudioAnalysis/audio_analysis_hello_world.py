@@ -1,3 +1,7 @@
+"""
+Audio Analysis - Introductory Code Example
+"""
+
 # ------------------------
 # Imports
 # ------------------------

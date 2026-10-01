@@ -1,7 +1,6 @@
-# -------------------------------------------------------------------------------------------------
-# Loads an CNN-based variational audio autoencoder
-# And demonstrates different experiments in inference mode
-# -------------------------------------------------------------------------------------------------
+"""
+Audio Autoencoder - Inference - Introductory Code Example
+"""
 
 # -------------------------------------------------------------------------------------------------
 # Imports

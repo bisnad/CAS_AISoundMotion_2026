@@ -4,31 +4,6 @@ import numpy as np
 import soundfile as sf
 import sounddevice as sd
 
-"""
-AudioReceiver plays the role of motion_receiver.MotionReceiver for the audio
-pipeline: it owns a pre-allocated numpy ring buffer ("data") that is
-continuously filled with the most recent audio samples, either from a file
-(played back in real time) or from a live microphone input stream. The
-pipeline reads from this buffer the same way MotionPipeline reads from
-oscReceiver.data.
-
-PERFORMANCE NOTE (playback clicks): audio output now uses a real-time
-sounddevice.OutputStream CALLBACK, not a blocking stream.write() call from
-a plain Python thread. A blocking write() driven by time.sleep() timing is
-subject to GIL contention and OS scheduling jitter from the rest of the
-Python process (analysis, OSC sending, Qt event loop) - any delay there
-directly starves the output stream and causes audible clicks/underruns.
-With a callback, PortAudio's own dedicated, precisely-timed thread pulls
-audio data on demand from a small thread-safe ring buffer; a separate
-"filler" thread keeps that ring buffer topped up from the file. This
-decouples playback timing completely from analysis/OSC/GUI timing.
-
-NOTE on sample-rate handling: when mode == "file", the file's own sample
-rate always wins (no resampling is performed). buffer_seconds / block_seconds
-are expressed in SECONDS and converted to samples once the true sample rate
-is known.
-"""
-
 config = {
     "mode": "file",             # "file" or "mic"
     "file_path": None,          # path to audio file (mode == "file")
@@ -319,9 +294,7 @@ class AudioReceiver():
     def _output_callback(self, outdata, frames, time_info, status):
         """
         Runs on PortAudio's dedicated real-time thread. Only reads from the
-        pre-filled ring buffer (a fast, minimal-lock-time numpy copy) - it
-        never touches the file, disk I/O, or analysis code, so it cannot be
-        stalled by librosa/OSC/GUI work happening on other threads.
+        pre-filled ring buffer (a fast, minimal-lock-time numpy copy).
         """
         chunk = self._output_ring.read(frames)
         outdata[:, 0] = chunk
@@ -330,10 +303,7 @@ class AudioReceiver():
         """
         Runs on a plain Python thread. Keeps the output ring buffer topped
         up by reading ahead from the file and also feeds the same samples
-        into the analysis rolling buffer. Being a non-realtime thread, any
-        jitter here only affects how far ahead the ring buffer is filled -
-        not the actual audio output timing, since the callback just reads
-        whatever is already buffered.
+        into the analysis rolling buffer. 
         """
         fill_chunk = max(self.block_size, 1)
 

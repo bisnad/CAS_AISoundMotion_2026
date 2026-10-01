@@ -3,9 +3,7 @@ import numpy as np
 from pythonosc.udp_client import SimpleUDPClient
 
 """
-OscSender for the audio pipeline - functionally identical to
-motion_sender.OscSender, kept as its own module/class so the audio tool has
-no import dependency on the mocap tool.
+OscSender for the audio pipeline.
 """
 
 config = {

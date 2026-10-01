@@ -3,21 +3,11 @@ import librosa
 
 """
 Real-time-friendly audio descriptor functions.
-
-PERFORMANCE NOTE: several of librosa's spectral descriptors (chroma_stft,
-melspectrogram, spectral_centroid, spectral_bandwidth, spectral_contrast,
-spectral_rolloff) all internally start by computing the same STFT magnitude
-spectrogram from y. Calling them independently - as the original version of
-this module did - recomputes that STFT once per descriptor, which is the
-single biggest CPU cost in the real-time pipeline at 48kHz. Every function
-below that supports it now accepts an optional precomputed power
-spectrogram S (shape [n_fft//2+1, frames]); audio_pipeline.py computes S
-once per tick via stft_power() and passes it into all of these, cutting
-several redundant STFTs down to one. Functions are still fully usable with
-just y/sr (S=None) for standalone/offline use.
 """
 
-
+# STFT power spectrogram |STFT|^2
+#   Technical: short-time Fourier transform magnitude squared; energy per frequency bin and time frame.
+#   Perceptual: the "raw material" for most descriptors below; shows which frequencies are present and how loud, over time.
 def stft_power(audio_excerpts, n_fft=2048, hop_length=512, center=False):
     """
     Compute the power spectrogram (|STFT|^2) once, to be shared across
@@ -33,7 +23,9 @@ def stft_power(audio_excerpts, n_fft=2048, hop_length=512, center=False):
         spectrograms.append(S)
     return spectrograms
 
-
+# RMS energy
+#   Technical: square root of the mean squared sample amplitude per frame; a linear, unweighted measure of signal level.
+#   Perceptual: approximates loudness/intensity (dynamics), but ignores ear sensitivity, so it is not true loudness (phon/LUFS).
 def rms(audio_excerpts, frame_length=2048, hop_length=512, center=False):
 
     """
@@ -53,7 +45,9 @@ def rms(audio_excerpts, frame_length=2048, hop_length=512, center=False):
 
     return root_mean_square
 
-
+# Zero-crossing rate (ZCR)
+#   Technical: fraction of consecutive samples per frame where the waveform changes sign; a time-domain proxy for dominant frequency/noisiness.
+#   Perceptual: high for hissy, noisy or percussive sounds (cymbals, "s"); low for smooth, low-pitched tonal sounds.
 def zero_crossing_rate(audio_excerpts, frame_length=2048, hop_length=512, center=False):
 
     """
@@ -74,7 +68,9 @@ def zero_crossing_rate(audio_excerpts, frame_length=2048, hop_length=512, center
 
     return zcr
 
-
+# Chroma (STFT-based)
+#   Technical: STFT energy folded into 12 pitch classes (C, C#, ... B), octave-independent; linear frequency resolution, so weaker for low notes.
+#   Perceptual: which musical notes/harmony are sounding, regardless of octave (chord and key colour).
 def chroma_stft(audio_excerpts, audio_sample_rate, n_fft=2048, hop_length=512, center=False, S_list=None):
 
     """
@@ -98,7 +94,9 @@ def chroma_stft(audio_excerpts, audio_sample_rate, n_fft=2048, hop_length=512, c
 
     return chroma_stft
 
-
+# Chroma (constant-Q)
+#   Technical: 12-bin pitch-class profile from a constant-Q transform (log-spaced bins, constant Q), matching musical pitch spacing.
+#   Perceptual: same "which notes" information as chroma_stft, but more accurate for bass and low notes, closer to how pitch is heard.
 def chroma_cqt(audio_excerpts, audio_sample_rate, hop_length=512, fmin=None, n_octaves=5, bins_per_octave=12):
 
     """
@@ -123,7 +121,9 @@ def chroma_cqt(audio_excerpts, audio_sample_rate, hop_length=512, fmin=None, n_o
 
     return chroma_cqt
 
-
+# Chroma CENS (Chroma Energy Normalized Statistics)
+#   Technical: CQT chroma that is L1-normalised, quantised and smoothed over time; robust to dynamics and timbre.
+#   Perceptual: the slowly changing harmonic "mood" or chord progression, insensitive to loudness, articulation and instrument.
 def chroma_cens(audio_excerpts, audio_sample_rate, hop_length=512, fmin=None, n_octaves=5, bins_per_octave=12):
 
     """
@@ -148,7 +148,9 @@ def chroma_cens(audio_excerpts, audio_sample_rate, hop_length=512, fmin=None, n_
 
     return chroma_cens
 
-
+# Chroma VQT (Variable-Q)
+#   Technical: chroma from a variable-Q transform with a chosen interval set (here "ji5", 5-limit just intonation), so bins need not be equal-tempered.
+#   Perceptual: pitch-class content that can follow non-Western or just-intoned tunings, hearing "the notes" without forcing a 12-tone grid.
 def chroma_vqt(audio_excerpts, audio_sample_rate, hop_length=512):
 
     # Variable-Q chromagram (slow to calculate)
@@ -166,15 +168,16 @@ def chroma_vqt(audio_excerpts, audio_sample_rate, hop_length=512):
 
     return chroma_vqt
 
-
+# Tonnetz (tonal centroid features)
+#   Technical: 6-D projection of chroma onto circles of fifths, minor thirds and major thirds (Harte et al., 2006).
+#   Perceptual: harmonic relationships and chord quality (consonant vs. tense, major vs. minor); changes signal harmonic movement.
 def tonnetz(audio_excerpts, audio_sample_rate, chroma=None, hop_length=512, n_fft=2048):
 
     """
     Compute the tonal centroid features (tonnetz). If no precomputed chroma
     is supplied, chroma is computed here explicitly (rather than letting
     librosa fall back to its own internal chroma_cqt call with defaults).
-    Expensive relative to its usefulness in a real-time OSC context -
-    consider disabling first if CPU-bound.
+    Expensive relative to its usefulness.
     """
 
     tonnetz_list = []
@@ -197,7 +200,9 @@ def tonnetz(audio_excerpts, audio_sample_rate, chroma=None, hop_length=512, n_ff
 
     return tonnetz_arr
 
-
+# Mel spectrogram
+#   Technical: power spectrogram pooled by a triangular mel filter bank (fine resolution at low frequencies, coarse at high).
+#   Perceptual: energy per critical-band-like region, approximating how the cochlea resolves pitch; a "picture" of the sound as heard.
 def mel_spectrogram(audio_excerpts, audio_sample_rate, n_fft=2048, hop_length=512, center=False, S_list=None):
 
     """
@@ -221,7 +226,9 @@ def mel_spectrogram(audio_excerpts, audio_sample_rate, n_fft=2048, hop_length=51
 
     return mel_spectrogram
 
-
+# MFCC (Mel-frequency cepstral coefficients)
+#   Technical: discrete cosine transform of the log-mel spectrum; low coefficients describe the smooth spectral envelope, higher ones finer detail.
+#   Perceptual: timbre or "tone colour" (vowel identity, instrument body, brightness), largely independent of pitch and loudness.
 def mfcc(audio_excerpts, audio_sample_rate, n_fft=2048, hop_length=512, center=False, S_list=None):
 
     """
@@ -229,7 +236,7 @@ def mfcc(audio_excerpts, audio_sample_rate, n_fft=2048, hop_length=512, center=F
     power spectrograms) is given, they are converted to log-mel and passed
     to librosa.feature.mfcc via its S kwarg to avoid recomputing the STFT.
     Still one of the more expensive per-tick descriptors due to the DCT
-    step - consider disabling first if CPU-bound.
+    step.
     """
 
     mfcc = []
@@ -250,7 +257,9 @@ def mfcc(audio_excerpts, audio_sample_rate, n_fft=2048, hop_length=512, center=F
 
     return mfcc
 
-
+# Spectral centroid
+#   Technical: magnitude-weighted mean frequency (Hz) of each frame; the spectrum's "centre of mass".
+#   Perceptual: correlates with brightness/sharpness; high = bright, sharp, airy; low = dark, dull, warm.
 def spectral_centroid(audio_excerpts, audio_sample_rate, n_fft=2048, hop_length=512, center=False, S_list=None):
 
     # Compute the spectral centroid, optionally reusing a precomputed power spectrogram.
@@ -271,7 +280,9 @@ def spectral_centroid(audio_excerpts, audio_sample_rate, n_fft=2048, hop_length=
 
     return spectral_centroid
 
-
+# Spectral bandwidth
+#   Technical: p-th order weighted standard deviation of frequency around the spectral centroid (Hz).
+#   Perceptual: spectral width; narrow = pure, focused tone (sine, flute); wide = rich, thick or noisy sound (distorted guitar, noise).
 def spectral_bandwidth(audio_excerpts, audio_sample_rate, n_fft=2048, hop_length=512, center=False, S_list=None):
 
     # Compute p'th-order spectral bandwidth, optionally reusing a precomputed power spectrogram.
@@ -292,13 +303,14 @@ def spectral_bandwidth(audio_excerpts, audio_sample_rate, n_fft=2048, hop_length
 
     return spectral_bandwidth
 
-
+# Spectral contrast
+#   Technical: per octave sub-band, the difference (dB) between spectral peaks and valleys.
+#   Perceptual: clarity of tonal structure; high for distinct harmonic tones, low for dense, noise-like or washed-out textures.
 def spectral_contrast(audio_excerpts, audio_sample_rate, n_fft=2048, hop_length=512, center=False, S_list=None):
 
     """
     Compute spectral contrast, optionally reusing a precomputed power
-    spectrogram. Still relatively expensive (per-octave-band statistics) -
-    consider disabling first if CPU-bound.
+    spectrogram. Still relatively expensive (per-octave-band statistics).
     """
 
     spectral_contrast = []
@@ -317,7 +329,9 @@ def spectral_contrast(audio_excerpts, audio_sample_rate, n_fft=2048, hop_length=
 
     return spectral_contrast
 
-
+# Spectral flatness
+#   Technical: geometric mean divided by arithmetic mean of the spectrum (0 to 1); 1 = flat like white noise, near 0 = peaky/tonal.
+#   Perceptual: tonal (pitched, "musical") versus noisy (hiss, rustle, breath) character.
 def spectral_flatness(audio_excerpts, n_fft=2048, hop_length=512, center=False):
 
     # Compute spectral flatness (needs a magnitude, not power, spectrogram - kept independent)
@@ -335,7 +349,9 @@ def spectral_flatness(audio_excerpts, n_fft=2048, hop_length=512, center=False):
 
     return spectral_flatness
 
-
+# Spectral roll-off
+#   Technical: frequency (Hz) below which a set fraction (default 85%) of the frame's spectral energy lies.
+#   Perceptual: upper edge of the sound's bulk; low = dark/muffled, high = bright with much high-frequency content (hi-hats, sibilance).
 def spectral_rolloff(audio_excerpts, audio_sample_rate, n_fft=2048, hop_length=512, center=False, S_list=None):
 
     # Compute roll-off frequency, optionally reusing a precomputed power spectrogram.
@@ -356,13 +372,15 @@ def spectral_rolloff(audio_excerpts, audio_sample_rate, n_fft=2048, hop_length=5
 
     return spectral_rolloff
 
-
+# Polynomial features (spectral tilt)
+#   Technical: coefficients of an order-N polynomial fitted to each frame's spectrum; order 1 gives slope and offset of the spectral tilt.
+#   Perceptual: overall spectral balance; how quickly energy falls off toward the highs (dark/warm vs. bright/thin), a coarse tone-shape measure.
 def poly_features(audio_excerpts, audio_sample_rate, order=1, n_fft=2048, hop_length=512, center=False, S_list=None):
 
     """
     Compute polynomial features (spectral tilt / slope). Fitting the
     polynomial itself (np.polyfit under the hood) is one of the more
-    expensive per-frame operations - consider disabling first if CPU-bound.
+    expensive per-frame operations.
     """
 
     poly = []
@@ -381,7 +399,9 @@ def poly_features(audio_excerpts, audio_sample_rate, order=1, n_fft=2048, hop_le
 
     return poly
 
-
+# Onset strength (spectral flux / novelty curve)
+#   Technical: frame-to-frame positive increase of the (log-mel) spectrum, summed over frequency.
+#   Perceptual: how strongly new sound events begin (attacks, hits, plucks); peaks mark perceived note or beat onsets.
 def onset_strength(audio_excerpts, audio_sample_rate, n_fft=2048, hop_length=512, center=False):
 
     """
@@ -401,7 +421,9 @@ def onset_strength(audio_excerpts, audio_sample_rate, n_fft=2048, hop_length=512
 
     return onset_env
 
-
+# Tempo
+#   Technical: dominant periodicity (BPM) of the onset strength envelope, from its autocorrelation with a tempo prior.
+#   Perceptual: the speed of the beat a listener would tap along to; on short buffers it is unreliable and may be off by 2x or 1/2x.
 def tempo(audio_excerpts, audio_sample_rate, hop_length=512):
 
     # Estimate the tempo (beats per minute)
@@ -419,7 +441,9 @@ def tempo(audio_excerpts, audio_sample_rate, hop_length=512):
 
     return tempo
 
-
+# Tempogram (autocorrelation)
+#   Technical: windowed autocorrelation of the onset envelope; rows are lag (tempo) bins, columns are time.
+#   Perceptual: which rhythmic periodicities are present at each moment (pulse, subdivisions, tempo changes) and how strong the beat feels.
 def tempogram(audio_excerpts, audio_sample_rate, hop_length=512, win_length=64):
 
     """
@@ -441,7 +465,9 @@ def tempogram(audio_excerpts, audio_sample_rate, hop_length=512, win_length=64):
 
     return tempogram
 
-
+# Fourier tempogram
+#   Technical: short-time Fourier transform of the onset envelope (complex); real and imaginary parts are stacked here, so magnitude and phase are preserved.
+#   Perceptual: same rhythmic-periodicity idea as the tempogram, but resolves the rhythm by repetition rate (Hz/BPM), with phase giving the beat's position in time.
 def fourier_tempogram(audio_excerpts, audio_sample_rate, hop_length=512, win_length=64):
 
     """
@@ -464,7 +490,9 @@ def fourier_tempogram(audio_excerpts, audio_sample_rate, hop_length=512, win_len
 
     return fourier_tempogram
 
-
+# Tempogram ratio (spectral rhythm patterns)
+#   Technical: tempogram energy sampled at integer and fractional multiples of the tempo (e.g. 1/4, 1/3, 1/2, 1, 3/2, 2, 3, 4x); tempo-normalised.
+#   Perceptual: the rhythmic feel or meter (duple vs. triple, swing, subdivision), independent of how fast the piece is played.
 def tempogram_ratio(audio_excerpts, audio_sample_rate, hop_length=512, win_length=64):
 
     """

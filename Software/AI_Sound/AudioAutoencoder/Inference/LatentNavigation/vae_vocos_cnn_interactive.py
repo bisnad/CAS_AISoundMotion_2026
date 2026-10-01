@@ -4,9 +4,8 @@ The encoder and decoder architectures employ convolutional neural networks
 ------------------------------------------
 - Loads audio, VAE models, and vocoder.
 - Uses t-SNE to map latent encodings for visualization.
-- PyQt/pyqtgraph GUI allows users to interactively select and generate new encodings via mouse.
+- GUI allows users to interactively select and generate new encodings.
 - Real-time audio synthesis using the currently selected encoding(s).
-- Audio streaming and GUI are run concurrently in separate threads.
 """
 
 import os

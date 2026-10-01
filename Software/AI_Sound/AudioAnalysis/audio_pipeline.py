@@ -1,43 +1,7 @@
 import numpy as np
 import analysis as aa
 
-
 class AudioPipeline():
-    """
-    Mirrors motion_pipeline.MotionPipeline: on every update() call it pulls
-    the latest audio samples from the receiver's rolling buffer, computes a
-    set of "cheap" per-hop descriptors, and periodically (on a longer
-    rolling window) computes "heavy" descriptors that need more temporal
-    context (tempo, tempogram, CQT/CENS/VQT chroma variants).
-
-    PERFORMANCE: two independent optimizations are applied compared to the
-    naive "call every librosa function separately" approach, which was too
-    slow to keep up with 48kHz audio at interactive frame rates:
-
-    1. Shared STFT: chroma_stft, mel_spectrogram, mfcc, spectral_centroid,
-       spectral_bandwidth, spectral_contrast and spectral_rolloff all
-       accept a precomputed power spectrogram (S). This pipeline computes
-       that spectrogram ONCE per tick via analysis.stft_power() and passes
-       it to every descriptor that can use it, instead of each descriptor
-       recomputing its own STFT independently.
-
-    2. Enable flags (self.enabled): every descriptor - cheap or heavy - is
-       gated by a boolean in self.enabled. Disabled descriptors are not
-       computed at all (not just excluded from OSC sending), so turning
-       off expensive ones (mfcc, mel_spectrogram, spectral_contrast,
-       poly_features, tonnetz, chroma_stft) directly reduces per-tick CPU
-       load. audio_gui.py's checklist items double as these enable flags -
-       checking an item both enables computation AND OSC sending for it.
-
-    RECOMMENDATION for 48kHz real-time use: keep rms, zero_crossing_rate,
-    spectral_centroid, spectral_bandwidth, spectral_rolloff, spectral_flatness
-    and onset_strength enabled (all cheap, and/or share the one STFT); disable
-    mfcc, mel_spectrogram, spectral_contrast, poly_features, tonnetz and
-    chroma_stft first if still CPU-bound, in roughly that order of cost.
-    Heavy descriptors (chroma_cqt/cens/vqt, tempo, tempogram family) already
-    run at a reduced rate (heavy_update_every) and can be disabled entirely
-    via self.enabled if they still cause periodic stalls.
-    """
 
     def __init__(self, audioReceiver, audio_config):
 
@@ -49,14 +13,13 @@ class AudioPipeline():
 
         self._tick_count = 0
 
-        # smoothing factors (mirrors posSmoothFactor etc. in mocap pipeline)
+        # smoothing factors
         self.rmsSmoothFactor = 0.9
         self.centroidSmoothFactor = 0.9
         self.onsetSmoothFactor = 0.9
 
         # per-descriptor enable flags - disabled descriptors are skipped
-        # entirely (not computed), which is what actually saves CPU time.
-        # audio_gui.py keeps this dict in sync with its checklist.
+        # entirely (not computed).
         default_enabled = audio_config.get("enabled_defaults", None)
         self.enabled = {
             "rms": True,
@@ -111,7 +74,7 @@ class AudioPipeline():
         self.tempogram_ratio = np.zeros(1)
 
         # ring buffer of onset-strength values, in case downstream code
-        # wants windowed aggregation (mirrors ringSize pattern in mocap pipeline)
+        # wants windowed aggregation
         self.ringSize = 25
         self.onsetRing = np.zeros(self.ringSize)
 

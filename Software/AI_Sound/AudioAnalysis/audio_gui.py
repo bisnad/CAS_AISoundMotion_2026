@@ -9,12 +9,6 @@ from time import sleep
 
 config = {"pipeline": None, "sender": None, "receiver": None}
 
-"""
-BarViewOptimized / DataViewOptimized / CanvasOptimized are reused verbatim
-from mocap_gui.py (same vispy-based real-time bar chart visualization).
-"""
-
-
 class BarViewOptimized:
     def __init__(self, max_value_count, colors, parent_view=None):
         self.max_value_count = max_value_count
@@ -274,8 +268,6 @@ class AudioGui(QtWidgets.QWidget):
         self.q_source_grid.addWidget(self.q_mic_toggle, 0, 1)
         self.q_source_grid.addWidget(self.q_loop_toggle, 0, 2)
 
-        # transport sliders: play head, region start, region end (all in seconds,
-        # represented as integer slider ticks at millisecond resolution)
         self._slider_scale = 1000.0  # slider units per second
 
         duration = self.receiver.get_file_duration()
@@ -310,8 +302,6 @@ class AudioGui(QtWidgets.QWidget):
         self.q_transport_grid.addWidget(self.q_region_end_label, 2, 0)
         self.q_transport_grid.addWidget(self.q_region_end_slider, 2, 1)
 
-        # timer-driven play-head display update (reads receiver's actual
-        # play head so the slider tracks playback without fighting user drags)
         from PyQt5.QtCore import QTimer
         self._suppress_playhead_signal = False
         self.q_playhead_timer = QTimer(self)
@@ -333,14 +323,6 @@ class AudioGui(QtWidgets.QWidget):
         self.q_canvas_grid.addWidget(self.canvas.canvas.native, 0, 0)
         self.q_canvas_grid.addWidget(self.q_canvas_toggle, 1, 0)
 
-        # send items - the CHECKBOX now controls ONLY whether a descriptor is
-        # sent via OSC. Whether a descriptor is DISPLAYED in the canvas is
-        # controlled purely by highlighting/selecting it in the list
-        # (see currentItemChanged -> on_item_highlighted below). Computation
-        # (pipeline.enabled) is the union of "checked for OSC" OR "currently
-        # highlighted for display", so unchecking an item only stops OSC
-        # sending if it is not also being viewed, and viewing an unchecked
-        # item still works (it is computed on demand while highlighted).
         self.sendItems = dict(self.pipeline.enabled)
         self.showItem = ""
 
@@ -424,8 +406,7 @@ class AudioGui(QtWidgets.QWidget):
     def start(self):
         """
         Starts both the analysis/OSC update thread and the audio
-        source/transport (file playback or microphone capture), so
-        pressing "start" actually produces sound as well as descriptors.
+        source/transport (file playback or microphone capture).
         """
         self.receiver.start()
 
@@ -640,7 +621,7 @@ class AudioGui(QtWidgets.QWidget):
     def update_view(self):
         """
         Displays whichever descriptor is currently highlighted/selected in
-        the list (self.showItem), independent of its OSC checkbox state.
+        the list.
         """
         if not self.showItem:
             return
@@ -677,12 +658,7 @@ class AudioGui(QtWidgets.QWidget):
     def on_item_highlighted(self, current, previous):
         """
         Called whenever the highlighted/current item in the descriptor list
-        changes. Highlighting alone now controls what is displayed in the
-        canvas - it is completely independent of the item's OSC checkbox.
-        Highlighting a descriptor also force-enables its computation in the
-        pipeline (so it has fresh data to display) even if its OSC checkbox
-        is unchecked; un-highlighting it drops that forced enable unless the
-        checkbox is still checked (for OSC sending).
+        changes.
         """
         if previous is not None:
             prev_text = previous.text()
@@ -699,11 +675,7 @@ class AudioGui(QtWidgets.QWidget):
 
     def change_send_item(self, widget):
         """
-        The checkbox controls ONLY whether a descriptor is sent via OSC.
-        Computation is re-derived as the union of "checked" OR "currently
-        highlighted for display", so unchecking a highlighted item keeps it
-        computed (for display) but stops sending it; checking an item
-        always enables its computation (for OSC), regardless of display.
+        The checkbox controls whether a descriptor is sent via OSC.
         """
         for i in range(widget.count()):
             q_sendItem = widget.item(i)

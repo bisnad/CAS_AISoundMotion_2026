@@ -1,7 +1,6 @@
 """
-Audio Nearest Neighbors
+Audio Nearest Neighbors - Introductory Code Example
 """
-
 
 """
 Imports

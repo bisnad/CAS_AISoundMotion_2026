@@ -1,6 +1,5 @@
 # ----------------------------------------------------------------------------
-# minimal, code-only tour of four core Stable Audio 3
-# capabilities: text 2 audio, inpainting, continuation, prompt interpolation
+# Stable Audio 3 - Introductory Code Example
 # ----------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------

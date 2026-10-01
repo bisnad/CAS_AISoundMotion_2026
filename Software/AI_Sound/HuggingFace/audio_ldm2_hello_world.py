@@ -1,7 +1,5 @@
 # -------------------------------------------------------------------------------------------------
-# AudioLDM2: Text-to-Audio Generation with Latent Diffusion Model
-# 
-# Experimenting with Pipeline
+# AudioLDM2: - Introductory Code Example
 # 
 # code based on: 
 #    https://huggingface.co/docs/diffusers/main/api/pipelines/audioldm2

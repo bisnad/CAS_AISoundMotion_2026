@@ -1,5 +1,11 @@
 """
-Audio Autoencoder (CNN Version) with PyQt5 GUI
+Audio Autoencoder for Vocos 48khz
+The encoder and decoder architectures employ convolutional neural networks
+------------------------------------------
+- Loads two audio files, the VAE models, and the vocoder.
+- Encodes overlapping audio windows of both files into latent vectors.
+- GUI allows users to interactively blend and shift the two encodings per dimension.
+- Real-time audio synthesis using the currently selected encoding(s).
 """
 
 import os
