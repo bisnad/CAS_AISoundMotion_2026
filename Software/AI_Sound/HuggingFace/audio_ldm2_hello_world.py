@@ -1,5 +1,7 @@
 # -------------------------------------------------------------------------------------------------
-# AudioLDM2: - Introductory Code Example
+# AudioLDM2: Text-to-Audio Generation with Latent Diffusion Model
+# 
+# Experimenting with Pipeline
 # 
 # code based on: 
 #    https://huggingface.co/docs/diffusers/main/api/pipelines/audioldm2
@@ -12,6 +14,7 @@
 import os
 import torch
 import soundfile as sf
+import torch.nn.functional as F
 from diffusers import AudioLDM2Pipeline
 
 # -------------------------------------------------------------------------------------------------
@@ -19,19 +22,18 @@ from diffusers import AudioLDM2Pipeline
 # -------------------------------------------------------------------------------------------------
 
 if torch.cuda.is_available():
-    device = 'cuda'
+    device = "cuda"
 elif torch.backends.mps.is_available():
-    device = 'mps'
+    device = "mps"
 else:
-    device = 'cpu'
-print(f'Using {device} device')
+    device = "cpu"
+print(f"Using {device} device")
 
 # -------------------------------------------------------------------------------------------------
 # Save Paths Settings
 # -------------------------------------------------------------------------------------------------
 
-save_audio_path = os.path.join("results/audio/")
-
+save_audio_path = "results/audio/"
 os.makedirs(save_audio_path, exist_ok=True)
 
 # -------------------------------------------------------------------------------------------------
@@ -102,6 +104,18 @@ for prompt in prompts:
 # Create Audio from Text Prompt Encodings
 # -------------------------------------------------------------------------------------------------
 
+def match_length(neg_embeds, neg_mask, target_len):
+    """Truncate or zero-pad the negative T5 branch to the positive length."""
+    cur = neg_embeds.shape[1]
+    if cur > target_len:
+        neg_embeds = neg_embeds[:, :target_len]
+        neg_mask = neg_mask[:, :target_len]
+    elif cur < target_len:
+        pad = target_len - cur
+        neg_embeds = F.pad(neg_embeds, (0, 0, 0, pad))
+        neg_mask = F.pad(neg_mask, (0, pad), value=0)
+    return neg_embeds, neg_mask
+
 # define the prompts
 prompts = ["Violin", "Creaking Wood", "A Violin that sounds like Creaking Wood"]
 negative_prompt = "Low quality."
@@ -109,38 +123,62 @@ negative_prompt = "Low quality."
 for prompt in prompts:
     if manual_seed is not None:
         generator = torch.Generator(device).manual_seed(manual_seed)
+    else:
+        generator = None
 
+    # Positive conditional branch.
     (
         prompt_embeds,
         attention_mask,
-        negative_prompt_embeds,
-        negative_attention_mask,
         generated_prompt_embeds,
-        negative_generated_prompt_embeds,
     ) = pipe.encode_prompt(
         prompt=prompt,
-        negative_prompt=negative_prompt,
         device=device,
-        do_classifier_free_guidance=True,
+        do_classifier_free_guidance=False,
         num_waveforms_per_prompt=1,
     )
 
+    # Negative / unconditional branch.
+    (
+        negative_prompt_embeds,
+        negative_attention_mask,
+        negative_generated_prompt_embeds,
+    ) = pipe.encode_prompt(
+        prompt=negative_prompt,
+        device=device,
+        do_classifier_free_guidance=False,
+        num_waveforms_per_prompt=1,
+    )
+
+    negative_prompt_embeds, negative_attention_mask = match_length(
+    negative_prompt_embeds,
+    negative_attention_mask,
+    prompt_embeds.shape[1],
+    )
+
+    # AudioLDM2Pipeline accepts explicit negative tensors.
     audio = pipe(
         prompt_embeds=prompt_embeds,
         attention_mask=attention_mask,
+        generated_prompt_embeds=generated_prompt_embeds,
+
         negative_prompt_embeds=negative_prompt_embeds,
         negative_attention_mask=negative_attention_mask,
-        generated_prompt_embeds=generated_prompt_embeds,
         negative_generated_prompt_embeds=negative_generated_prompt_embeds,
+
         num_inference_steps=num_inference_steps,
         guidance_scale=guidance_scale,
         audio_length_in_s=audio_length_in_s,
+        num_waveforms_per_prompt=1,
         generator=generator,
     ).audios
 
-    # save generated audio sample
     output = audio[0]
-    sf.write("{}textembed2audio_{}.wav".format(save_audio_path, prompt), output, 16000)
+    sf.write(
+        f"{save_audio_path}textembed2audio_{prompt}.wav",
+        output,
+        16000,
+    )
 
 # -------------------------------------------------------------------------------------------------
 # Create Audio from Mixed Text Prompt Encodings
@@ -148,42 +186,70 @@ for prompt in prompts:
 
 # define the prompts
 prompt1 = "Creaking Wood"
-prompt2 = "Voice"
+prompt2 = "Violin"
 negative_prompt = "Low quality."
 
-# Get text embedding vectors for prompt1
-prompt_embed1, attention_mask1, generated_prompt_embeds1 = pipe.encode_prompt(
-    prompt=prompt1,
-    negative_prompt=negative_prompt,
-    device=device,
-    do_classifier_free_guidance=False,
-    num_waveforms_per_prompt=1
-)
+mix_weight = 0.5  # weight of prompt1 (only used for "average" and for the GPT-2 embeddings)
 
-# Get text embedding vectors for prompt2
-prompt_embed2, attention_mask2, generated_prompt_embeds2 = pipe.encode_prompt(
-    prompt=prompt2,
-    negative_prompt=negative_prompt,
-    device=device,
-    do_classifier_free_guidance=False,
-    num_waveforms_per_prompt=1
-)
+# Encode both positive prompts and the negative prompt (CFG disabled)
+p1, m1, g1 = pipe.encode_prompt(
+        prompt=prompt1,
+        device=device,
+        do_classifier_free_guidance=False,
+        num_waveforms_per_prompt=1,
+    ) 
+
+p2, m2, g2 = pipe.encode_prompt(
+        prompt=prompt2,
+        device=device,
+        do_classifier_free_guidance=False,
+        num_waveforms_per_prompt=1,
+    ) 
+
+neg_p, neg_m, neg_g = pipe.encode_prompt(
+        prompt=negative_prompt,
+        device=device,
+        do_classifier_free_guidance=False,
+        num_waveforms_per_prompt=1,
+    ) 
 
 # mix the two text embeddings
-prompt_embeds_mix = torch.cat((prompt_embed1, prompt_embed2), dim=1)
-attention_masks_mix = torch.cat((attention_mask1, attention_mask2), dim=1)
-generated_prompt_embeds_mix = 0.5 * generated_prompt_embeds1 + 0.5 * generated_prompt_embeds2
+
+# the two prompts can have different token counts, so pad to a common length first
+L = max(p1.shape[1], p2.shape[1])
+p1, m1 = match_length(p1, m1, L)
+p2, m2 = match_length(p2, m2, L)
+prompt_embeds_mix = mix_weight * p1 + (1.0 - mix_weight) * p2
+attention_mask_mix = torch.maximum(m1, m2)
+
+# GPT-2 generated embeddings have a fixed length, so a weighted average works directly
+generated_prompt_embeds_mix = mix_weight * g1 + (1.0 - mix_weight) * g2
+
+# the negative branch must have the same sequence length as the mixed positive branch
+neg_p, neg_m = match_length(neg_p, neg_m, prompt_embeds_mix.shape[1])
+
+# fresh generator so the result is reproducible
+generator = torch.Generator(device).manual_seed(manual_seed)
 
 # generate audio with mixed text embedding
 audios_mix = pipe(
     prompt_embeds=prompt_embeds_mix,
-    attention_mask=attention_masks_mix,
+    attention_mask=attention_mask_mix,
     generated_prompt_embeds=generated_prompt_embeds_mix,
+    negative_prompt_embeds=neg_p,
+    negative_attention_mask=neg_m,
+    negative_generated_prompt_embeds=neg_g,
     num_inference_steps=num_inference_steps,
     guidance_scale=guidance_scale,
     audio_length_in_s=audio_length_in_s,
+    num_waveforms_per_prompt=1,
+    generator=generator,
 ).audios
 
 # save generated audio sample
-output = audio[0]
-sf.write("{}textembedmix2audio_{}_{}.wav".format(save_audio_path, prompt1, prompt2), output, 16000)
+output = audios_mix[0]
+sf.write(
+    "{}textembedmix2audio_{}_{}.wav".format(save_audio_path, prompt1, prompt2),
+    output,
+    16000,
+)
