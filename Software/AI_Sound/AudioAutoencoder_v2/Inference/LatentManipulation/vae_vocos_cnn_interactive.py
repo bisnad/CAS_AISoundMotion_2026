@@ -89,9 +89,9 @@ sample_posterior = False
 
 weights_dir = "data/models/vae_cnn_Stocos_ld32/"
 weights_epoch = 400
-ae_encoder_weights_file = os.path.join(weights_dir, f"encoder_weights_epoch_{weights_epoch}")
-ae_decoder_weights_file = os.path.join(weights_dir, f"decoder_weights_epoch_{weights_epoch}")
-ae_vocos_weights_file = os.path.join(weights_dir, f"vocos_weights_epoch_{weights_epoch}")
+ae_encoder_weights_file = os.path.join(weights_dir, f"encoder_weights_epoch_{weights_epoch}.pt")
+ae_decoder_weights_file = os.path.join(weights_dir, f"decoder_weights_epoch_{weights_epoch}.pt")
+ae_vocos_weights_file = os.path.join(weights_dir, f"vocos_weights_epoch_{weights_epoch}.pt")
 
 """
 OSC Control Settings

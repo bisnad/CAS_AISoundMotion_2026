@@ -112,7 +112,7 @@ os.makedirs(save_audio_path, exist_ok=True)
 latent_channels = 32                       # latent channels per latent frame (time is downsampled 4x)
 conv_channel_counts = [32, 64, 128, 256]
 conv_strides = [(2, 1), (2, 2), (2, 1), (2, 2)]   # (freq, time); freq 128 -> 8, time /4
-bottleneck_width = 512                     # number of channels in the hidden layers of the 1D convolution stack
+bottleneck_width = 512                     # number of channels in the hidden layers of the last 1D convolution stack
 time_downsample = 4                        # product of the time strides, keep consistent with conv_strides
 
 # -------------------------------------------------------------------------------------------------
@@ -120,7 +120,7 @@ time_downsample = 4                        # product of the time strides, keep c
 # -------------------------------------------------------------------------------------------------
 
 epochs = 400                               # epoch of the loaded weights (also used in output file names)
-weights_tag = "data/models/vae_cnn_Stocos_ld32/{}_weights_epoch_400"
+weights_tag = "data/models/vae_cnn_Stocos_ld32/{}_weights_epoch_400.pt"
 
 # -------------------------------------------------------------------------------------------------
 # Fix Seeds

@@ -105,7 +105,7 @@ mel_floor = -11.5                          # ~ln(1e-5); log-mels are clamped to 
 # Save Paths
 # -------------------------------------------------------------------------------------------------
 
-save_path = "results/vae_cnn_Stocos_ld32_test"
+save_path = "results/vae_cnn_Stocos_ld32"
 save_weights_path = os.path.join(save_path, "weights/")
 save_history_path = os.path.join(save_path, "histories/")
 save_audio_path = os.path.join(save_path, "audio/")
@@ -169,7 +169,7 @@ ae_max_beta = 0.01
 save_weights = True
 load_weights = False
 model_save_interval = 50
-weights_tag = "results/vae_cnn_Stocos_ld32/weights/{}_weights_epoch_400"
+weights_tag = "results/vae_cnn_Stocos_ld32/weights/{}_weights_epoch_400.pt"
 
 # -------------------------------------------------------------------------------------------------
 # Fix Seeds
@@ -542,10 +542,10 @@ def train():
     return hist
 
 def save_all(tag):
-    torch.save(encoder.state_dict(), f"{save_weights_path}encoder_weights_epoch_{tag}")
-    torch.save(decoder.state_dict(), f"{save_weights_path}decoder_weights_epoch_{tag}")
-    torch.save({"backbone": vocos.backbone.state_dict(), "head": vocos.head.state_dict()}, f"{save_weights_path}vocos_weights_epoch_{tag}")
-    torch.save(disc.state_dict(), f"{save_weights_path}disc_weights_epoch_{tag}")
+    torch.save(encoder.state_dict(), f"{save_weights_path}encoder_weights_epoch_{tag}.pt")
+    torch.save(decoder.state_dict(), f"{save_weights_path}decoder_weights_epoch_{tag}.pt")
+    torch.save({"backbone": vocos.backbone.state_dict(), "head": vocos.head.state_dict()}, f"{save_weights_path}vocos_weights_epoch_{tag}.pt")
+    torch.save(disc.state_dict(), f"{save_weights_path}disc_weights_epoch_{tag}.pt")
 
 def plot_training_history(h, file_name):
     keys = [k for k in h if k not in ("beta", "lr")] + ["beta", "lr"]

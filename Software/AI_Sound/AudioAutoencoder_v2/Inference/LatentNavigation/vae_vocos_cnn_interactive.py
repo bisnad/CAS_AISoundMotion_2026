@@ -133,9 +133,9 @@ mel_floor = -11.5
 
 weights_dir = "data/models/vae_cnn_Gutenberg_ld32/"     # adjust to your v5 training run
 weights_epoch = 400
-ae_encoder_weights_file = os.path.join(weights_dir, f"encoder_weights_epoch_{weights_epoch}")
-ae_decoder_weights_file = os.path.join(weights_dir, f"decoder_weights_epoch_{weights_epoch}")
-ae_vocos_weights_file = os.path.join(weights_dir, f"vocos_weights_epoch_{weights_epoch}")
+ae_encoder_weights_file = os.path.join(weights_dir, f"encoder_weights_epoch_{weights_epoch}.pt")
+ae_decoder_weights_file = os.path.join(weights_dir, f"decoder_weights_epoch_{weights_epoch}.pt")
+ae_vocos_weights_file = os.path.join(weights_dir, f"vocos_weights_epoch_{weights_epoch}.pt")
 
 """
 Load Audio
