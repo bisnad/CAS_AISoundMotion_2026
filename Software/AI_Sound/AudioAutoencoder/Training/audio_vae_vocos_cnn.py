@@ -92,7 +92,7 @@ vae_dense_layer_sizes = [ 512 ]
 # Training Settings
 # -------------------------------------------------------------------------------------------------
 
-audio_excerpt_count = 100000 # total number of randomly-positioned excerpts to draw across all audio files
+audio_excerpt_count = 1000 # total number of randomly-positioned excerpts to draw across all audio files
 test_percentage = 0.1
 
 batch_size = 128
@@ -111,8 +111,8 @@ save_history = True
 save_weights = True
 load_weights = False
 model_save_interval = 50
-encoder_weights_file = "results_vae_cnn_Gutenberg_ld32/weights/encoder_weights_epoch_400"
-decoder_weights_file = "results_vae_cnn_Gutenberg_ld32/weights/decoder_weights_epoch_400"
+encoder_weights_file = "results_vae_cnn_Gutenberg_ld32/weights/encoder_weights_epoch_400.pt"
+decoder_weights_file = "results_vae_cnn_Gutenberg_ld32/weights/decoder_weights_epoch_400.pt"
 
 # -------------------------------------------------------------------------------------------------
 # Inference Settings
@@ -739,8 +739,8 @@ def train(train_loader, test_loader, epochs):
         ae_test_loss_per_epoch = np.mean(np.array(ae_test_loss_per_epoch))
         
         if epoch % model_save_interval == 0 and save_weights == True:
-            torch.save(encoder.state_dict(), "{}encoder_weights_epoch_{}".format(save_weights_path, epoch))
-            torch.save(decoder.state_dict(), "{}decoder_weights_epoch_{}".format(save_weights_path, epoch))
+            torch.save(encoder.state_dict(), "{}encoder_weights_epoch_{}.pt".format(save_weights_path, epoch))
+            torch.save(decoder.state_dict(), "{}decoder_weights_epoch_{}.pt".format(save_weights_path, epoch))
         
         loss_history["ae train"].append(ae_train_loss_per_epoch)
         loss_history["ae test"].append(ae_test_loss_per_epoch)
@@ -918,8 +918,8 @@ if save_weights == True:
     plot_training_history(loss_history, "{}history_{}.png".format(save_history_path, epochs))
 
     # save model weights
-    torch.save(encoder.state_dict(), "{}encoder_weights_epoch_{}".format(save_weights_path, epochs))
-    torch.save(decoder.state_dict(), "{}decoder_weights_epoch_{}".format(save_weights_path, epochs))
+    torch.save(encoder.state_dict(), "{}encoder_weights_epoch_{}.pt".format(save_weights_path, epochs))
+    torch.save(decoder.state_dict(), "{}decoder_weights_epoch_{}.pt".format(save_weights_path, epochs))
 
     # build one combined latent space representation across all test files, tracking excerpt-range
     # offsets per file so highlight ranges still map correctly onto the concatenated encodings

@@ -71,8 +71,8 @@ vae_dense_layer_sizes = [ 512 ]
 # Training Settings
 # -------------------------------------------------------------------------------------------------
 
-encoder_weights_file = "data/models/vae_cnn_Stocos_ld32/encoder_weights_epoch_400"
-decoder_weights_file = "data/models/vae_cnn_Stocos_ld32/decoder_weights_epoch_400"
+encoder_weights_file = "data/models/vae_cnn_Stocos_ld32/encoder_weights_epoch_400.pt"
+decoder_weights_file = "data/models/vae_cnn_Stocos_ld32/decoder_weights_epoch_400.pt"
 
 # -------------------------------------------------------------------------------------------------
 # Fix Seeds

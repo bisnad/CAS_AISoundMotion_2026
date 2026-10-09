@@ -68,8 +68,8 @@ ae_conv_channel_counts = [ 16, 32, 64, 128 ]
 ae_conv_kernel_size = (5, 3)
 ae_dense_layer_sizes = [ 512 ]
 
-ae_encoder_weights_file = "data/models/vae_cnn_Stocos_ld32/encoder_weights_epoch_400"
-ae_decoder_weights_file = "data/models/vae_cnn_Stocos_ld32/decoder_weights_epoch_400"
+ae_encoder_weights_file = "data/models/vae_cnn_Stocos_ld32/encoder_weights_epoch_400.pt"
+ae_decoder_weights_file = "data/models/vae_cnn_Stocos_ld32/decoder_weights_epoch_400.pt"
 
 """
 OSC Control Settings

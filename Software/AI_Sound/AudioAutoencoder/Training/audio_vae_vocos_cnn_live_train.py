@@ -614,8 +614,8 @@ class Trainer:
 
     def save_checkpoint(self):
         os.makedirs(os.path.join(save_path, "weights"), exist_ok=True)
-        torch.save(self.enc.state_dict(), os.path.join(save_path, "weights", f"encoder_weights_step_{self.step}"))
-        torch.save(self.dec.state_dict(), os.path.join(save_path, "weights", f"decoder_weights_step_{self.step}"))
+        torch.save(self.enc.state_dict(), os.path.join(save_path, "weights", f"encoder_weights_step_{self.step}.pt"))
+        torch.save(self.dec.state_dict(), os.path.join(save_path, "weights", f"decoder_weights_step_{self.step}.pt"))
         self.status_msg = f"Saved checkpoint at step {self.step}"
 
     def run(self):
