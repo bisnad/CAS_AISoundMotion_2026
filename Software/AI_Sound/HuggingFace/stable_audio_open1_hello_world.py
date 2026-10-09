@@ -30,7 +30,7 @@ print(f'Using {device} device')
 # Save Paths Settings
 # -------------------------------------------------------------------------------------------------
 
-save_audio_path = os.path.join("results/audio/")
+save_audio_path = "results/audio/"
 
 os.makedirs(save_audio_path, exist_ok=True)
 
@@ -69,7 +69,7 @@ prompts = ["Violin", "Creaking Wood", "A Violin that sounds like Creaking Wood"]
 negative_prompt = "Low quality."
 num_inference_steps = 100
 audio_end_in_s = 5.0
-guidance_scale = 4.5
+guidance_scale = 3.5
 
 for prompt in prompts:
 
@@ -135,6 +135,8 @@ prompt1 = "Violin"
 prompt2 = "Creaking Wood"
 negative_prompt = "Low quality."
 
+mix_weight = 0.5  # weight of prompt1 (only used for "average" and for the GPT-2 embeddings)
+
 if manual_seed is not None:
     generator = torch.Generator(device).manual_seed(manual_seed)
 
@@ -155,7 +157,7 @@ prompt_embeds2 = pipe.encode_prompt(
 )
 
 # mix the two text embeddings
-prompt_embeds_mix = 0.5 * prompt_embeds1 + 0.5 * prompt_embeds2
+prompt_embeds_mix = mix_weight * prompt_embeds1 + (1.0 - mix_weight) * prompt_embeds2
 
 # generate audio with mixed text embedding
 audio_mix = pipe(
