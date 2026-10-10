@@ -3,43 +3,12 @@
 Audio Degradation Demo — Aliasing & Bit-Depth Reduction
 =========================================================
 
-Interactive PyQt5 GUI that demonstrates two classic digital-audio
-degradation effects in real time:
+Interactive PyQt5 GUI demonstrating:
+  1. Aliasing from sample-rate reduction (sample-and-hold, no anti-alias filter)
+  2. Quantization distortion from bit-depth reduction
 
-1. Aliasing / frequency foldover — caused by reducing the effective
-   sampling rate (simulated via sample-and-hold decimation without an
-   anti-aliasing filter, so high frequencies "fold over" the new
-   Nyquist limit instead of being removed cleanly).
-
-2. Quantization distortion — caused by reducing the bit resolution
-   used to represent the amplitude of each sample (fewer quantization
-   levels -> more quantization noise / harsh high-frequency artifacts).
-
-You can play either:
-  - A synthetic sine wave (frequency adjustable), or
-  - An external audio file (wav/flac/ogg/... loaded via soundfile,
-    resampled to the device sample rate).
-
-Sliders let you change:
-  - Effective sample rate (via decimation factor)
-  - Bit depth (2-16 bits)
-
-A dropdown lets you pick the audio OUTPUT device (via sounddevice).
-Two stacked live plots show the effect of your settings:
-  - Top: waveform view (original vs. degraded), showing the
-    stair-stepping / held samples from sample-rate reduction and the
-    "stepped" amplitude levels from bit-depth reduction directly in
-    the time domain.
-  - Bottom: spectrum view (original vs. degraded), showing foldover
-    artifacts appearing below the new Nyquist frequency.
-
-Dependencies
-------------
-    pip install PyQt5 sounddevice soundfile numpy scipy matplotlib
-
-Run
----
-    python audio_degradation_demo.py
+Sources: synthetic sine, or an audio file (via soundfile).
+Plots: waveform (time domain) and spectrum (frequency domain).
 """
 
 import sys
@@ -62,25 +31,12 @@ from matplotlib.figure import Figure
 # --------------------------------------------------------------------------
 
 def generate_sine(freq, duration, fs, amplitude=0.6):
-    """Generate a mono sine wave at the given sample rate."""
     t = np.arange(int(duration * fs)) / fs
     return (amplitude * np.sin(2 * np.pi * freq * t)).astype(np.float64)
 
 
 def apply_sample_rate_reduction(x, factor):
-    """
-    Simulate a reduced sampling rate WITHOUT an anti-aliasing filter.
-
-    We use a naive sample-and-hold decimation: every `factor` samples,
-    we hold the value of the first sample of that group for the whole
-    group, at the ORIGINAL sample rate. This mimics what a cheap
-    sample-rate reducer / bitcrusher "downsample" stage does: it does
-    not band-limit the signal first, so frequency content above the
-    new (lower) Nyquist frequency folds back (aliases) into the
-    audible range instead of being attenuated.
-
-    factor = 1 means no reduction (bypass).
-    """
+    """Sample-and-hold decimation without anti-aliasing filter."""
     factor = max(1, int(round(factor)))
     if factor == 1:
         return x.copy()
@@ -91,33 +47,17 @@ def apply_sample_rate_reduction(x, factor):
 
 
 def apply_bit_depth_reduction(x, bits):
-    """
-    Simulate reduced amplitude (bit) resolution via uniform quantization.
-
-    bits: number of bits used to represent amplitude (e.g. 16, 8, 4, 2).
-    The signal is assumed normalized to [-1, 1]; it is clipped, then
-    quantized to 2**bits evenly spaced levels across that range.
-
-    Lower bit depths introduce quantization error that behaves like
-    added broadband noise / harsh distortion, which is particularly
-    audible as harshness in high-frequency content and as an audible
-    noise floor.
-    """
-    bits = int(round(bits))
-    bits = max(1, min(24, bits))
+    """Uniform quantization of a [-1, 1] signal to 2**bits levels."""
+    bits = max(1, min(24, int(round(bits))))
     levels = 2 ** bits
     x_clipped = np.clip(x, -1.0, 1.0)
-    # map [-1, 1] -> [0, levels-1], round, map back
     q = np.round((x_clipped + 1.0) * 0.5 * (levels - 1))
-    q = q / (levels - 1) * 2.0 - 1.0
-    return q
+    return q / (levels - 1) * 2.0 - 1.0
 
 
 def process_audio(x, sr_factor, bits):
-    """Apply both degradation stages in sequence."""
     y = apply_sample_rate_reduction(x, sr_factor)
-    y = apply_bit_depth_reduction(y, bits)
-    return y
+    return apply_bit_depth_reduction(y, bits)
 
 
 # --------------------------------------------------------------------------
@@ -125,22 +65,13 @@ def process_audio(x, sr_factor, bits):
 # --------------------------------------------------------------------------
 
 class AudioEngine(QtCore.QObject):
-    """
-    Wraps sounddevice OutputStream playback of a numpy buffer with a
-    callback so that changes to sliders can be picked up (by
-    reprocessing the *source* buffer and swapping the playback buffer)
-    without restarting the stream every time.
-    """
-
-    position_changed = QtCore.pyqtSignal(int)
-    playback_finished = QtCore.pyqtSignal()
     error_occurred = QtCore.pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
         self.fs = 44100
-        self.source = np.zeros(0, dtype=np.float64)   # untouched original
-        self.playback_buffer = np.zeros(0, dtype=np.float64)  # processed
+        self.source = np.zeros(0, dtype=np.float64)
+        self.playback_buffer = np.zeros(0, dtype=np.float64)
         self.lock = threading.Lock()
         self.pos = 0
         self.stream = None
@@ -152,55 +83,49 @@ class AudioEngine(QtCore.QObject):
         self.device_index = device_index
 
     def load_source(self, data, fs):
+        data = data.astype(np.float64)
+        new_buf = process_audio(data, self.sr_factor, self.bits) if len(data) else np.zeros(0)
         with self.lock:
-            self.source = data.astype(np.float64)
+            self.source = data
             self.fs = fs
             self.pos = 0
-            self._reprocess_locked()
+            self.playback_buffer = new_buf
 
     def update_params(self, sr_factor, bits):
+        # Heavy DSP happens outside the lock; only the swap is locked.
         with self.lock:
-            self.sr_factor = sr_factor
-            self.bits = bits
-            self._reprocess_locked()
-
-    def _reprocess_locked(self):
-        """Recompute playback_buffer from source using current params.
-        Caller must hold self.lock."""
-        if len(self.source) == 0:
-            self.playback_buffer = np.zeros(0)
-            return
-        self.playback_buffer = process_audio(self.source, self.sr_factor, self.bits)
-
-    def get_processed_preview(self, n_samples=None):
-        """Return a copy of the current processed buffer (for plotting)."""
+            src = self.source
+        new_buf = process_audio(src, sr_factor, bits) if len(src) else np.zeros(0)
         with self.lock:
-            if n_samples is None:
-                return self.playback_buffer.copy(), self.fs
-            return self.playback_buffer[:n_samples].copy(), self.fs
+            if src is self.source:  # source unchanged meanwhile
+                self.sr_factor = sr_factor
+                self.bits = bits
+                self.playback_buffer = new_buf
 
-    def get_playhead(self):
+    def get_snapshot(self):
+        """Return (source, processed, fs, playhead) consistently."""
         with self.lock:
-            return self.pos
+            return self.source, self.playback_buffer, self.fs, self.pos
 
     def _callback(self, outdata, frames, time_info, status):
-        if status:
-            pass  # underflows etc. are common while scrubbing sliders; ignore
         with self.lock:
             buf = self.playback_buffer
             n = len(buf)
             if n == 0:
                 outdata[:] = 0
                 return
-            end = self.pos + frames
-            if end <= n:
-                chunk = buf[self.pos:end]
-                self.pos = end
-            else:
-                chunk = np.concatenate([buf[self.pos:n], np.zeros(end - n)])
-                self.pos = 0  # loop
-            outdata[:, 0] = chunk
-        self.position_changed.emit(self.pos)
+            out = np.empty(frames, dtype=np.float64)
+            filled = 0
+            pos = self.pos
+            while filled < frames:  # loop seamlessly
+                take = min(frames - filled, n - pos)
+                out[filled:filled + take] = buf[pos:pos + take]
+                filled += take
+                pos += take
+                if pos >= n:
+                    pos = 0
+            self.pos = pos
+            outdata[:, 0] = out
 
     def start(self):
         self.stop()
@@ -217,6 +142,7 @@ class AudioEngine(QtCore.QObject):
             )
             self.stream.start()
         except Exception as e:
+            self.stream = None
             self.error_occurred.emit(str(e))
 
     def stop(self):
@@ -232,20 +158,15 @@ class AudioEngine(QtCore.QObject):
 
 
 # --------------------------------------------------------------------------
-# Waveform + Spectrum plot widget (stacked)
+# Waveform + Spectrum plot widget
 # --------------------------------------------------------------------------
 
 class ScopeCanvas(FigureCanvas):
-    """Two stacked live plots sharing one figure:
-    top = time-domain waveform (original vs. degraded),
-    bottom = frequency-domain spectrum (original vs. degraded)."""
-
     def __init__(self, parent=None):
-        self.fig = Figure(figsize=(6, 6.0), tight_layout=True)
+        self.fig = Figure(figsize=(6, 6.0))
         super().__init__(self.fig)
         self.setParent(parent)
 
-        # --- waveform (top) axis ---
         self.ax_wave = self.fig.add_subplot(211)
         self.ax_wave.set_xlabel("Time (ms)")
         self.ax_wave.set_ylabel("Amplitude")
@@ -255,7 +176,6 @@ class ScopeCanvas(FigureCanvas):
         self.ax_wave.legend(loc="upper right", fontsize=8)
         self.ax_wave.set_ylim(-1.05, 1.05)
 
-        # --- spectrum (bottom) axis ---
         self.ax_spec = self.fig.add_subplot(212)
         self.ax_spec.set_xlabel("Frequency (Hz)")
         self.ax_spec.set_ylabel("Magnitude (dB)")
@@ -265,6 +185,8 @@ class ScopeCanvas(FigureCanvas):
         self.nyq_line = self.ax_spec.axvline(0, color="#1f77b4", ls="--", lw=1.0, label="New Nyquist")
         self.ax_spec.legend(loc="upper right", fontsize=8)
         self.ax_spec.set_ylim(-100, 5)
+
+        self.fig.tight_layout()  # once; axes limits change but layout does not
 
     def update_waveform(self, orig, proc, fs, window_ms=30.0):
         n = int(fs * window_ms / 1000.0)
@@ -278,12 +200,11 @@ class ScopeCanvas(FigureCanvas):
         def spectrum(x):
             if len(x) < 2:
                 return np.array([0.0]), np.array([-100.0])
-            n = min(len(x), 65536)
-            x = x[:n] * np.hanning(n)
-            spec = np.fft.rfft(x)
+            n = min(len(x), 16384)
+            xw = x[:n] * np.hanning(n)
+            spec = np.fft.rfft(xw)
             mag_db = 20 * np.log10(np.abs(spec) / (n / 2) + 1e-12)
-            freqs = np.fft.rfftfreq(n, 1 / fs)
-            return freqs, mag_db
+            return np.fft.rfftfreq(n, 1 / fs), mag_db
 
         f1, m1 = spectrum(orig)
         f2, m2 = spectrum(proc)
@@ -301,9 +222,9 @@ class ScopeCanvas(FigureCanvas):
 # --------------------------------------------------------------------------
 
 class MainWindow(QtWidgets.QMainWindow):
-    SINE_DURATION = 3.0     # seconds, looped
-    NATIVE_FS = 44100       # device playback rate; source audio is resampled/repeated to fit callback
-    WAVE_WINDOW_MS = 30.0   # width of the live waveform window
+    SINE_DURATION = 3.0
+    NATIVE_FS = 44100
+    WAVE_WINDOW_MS = 30.0
 
     def __init__(self):
         super().__init__()
@@ -313,13 +234,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.engine = AudioEngine()
         self.engine.error_occurred.connect(self.on_engine_error)
 
-        self.loaded_file_data = None   # (mono float64 array, fs) as loaded, before any resampling to NATIVE_FS
-        self.current_mode = "sine"     # "sine" or "file"
+        self.loaded_file_data = None
+        self.current_mode = "sine"
         self.sine_freq = 440.0
+        self._params_dirty = False
+        self._device_indices = []
 
         self._build_ui()
         self._populate_devices()
-        self._on_source_changed()  # initializes sine source
+        self._on_source_changed()
+
         self.update_timer = QtCore.QTimer(self)
         self.update_timer.setInterval(80)
         self.update_timer.timeout.connect(self.refresh_plots)
@@ -331,7 +255,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(central)
         main_layout = QtWidgets.QVBoxLayout(central)
 
-        # --- Source selection group ---
+        # --- Source selection ---
         src_group = QtWidgets.QGroupBox("Audio Source")
         src_layout = QtWidgets.QHBoxLayout(src_group)
 
@@ -356,10 +280,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.file_label = QtWidgets.QLabel("(no file loaded)")
         self.file_label.setStyleSheet("color: gray;")
         src_layout.addWidget(self.file_label, 1)
-
         main_layout.addWidget(src_group)
 
-        # --- Output device group ---
+        # --- Output device ---
         dev_group = QtWidgets.QGroupBox("Audio Output Device")
         dev_layout = QtWidgets.QHBoxLayout(dev_group)
         self.device_combo = QtWidgets.QComboBox()
@@ -370,11 +293,10 @@ class MainWindow(QtWidgets.QMainWindow):
         dev_layout.addWidget(self.refresh_devices_btn)
         main_layout.addWidget(dev_group)
 
-        # --- Degradation controls group ---
+        # --- Degradation controls ---
         deg_group = QtWidgets.QGroupBox("Degradation Controls")
         deg_layout = QtWidgets.QGridLayout(deg_group)
 
-        # Sample rate reduction slider (expressed as decimation factor 1..64)
         deg_layout.addWidget(QtWidgets.QLabel("Sample-rate reduction:"), 0, 0)
         self.sr_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
         self.sr_slider.setRange(1, 64)
@@ -384,7 +306,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.sr_value_label = QtWidgets.QLabel()
         deg_layout.addWidget(self.sr_value_label, 0, 2)
 
-        # Bit depth slider
         deg_layout.addWidget(QtWidgets.QLabel("Bit resolution:"), 1, 0)
         self.bit_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
         self.bit_slider.setRange(2, 16)
@@ -394,9 +315,28 @@ class MainWindow(QtWidgets.QMainWindow):
         self.bit_value_label = QtWidgets.QLabel()
         deg_layout.addWidget(self.bit_value_label, 1, 2)
 
+        # Layout fix: slider column takes all spare space, label column has a
+        # fixed width wide enough for the longest possible text, so label
+        # changes can never resize the sliders.
+        deg_layout.setColumnStretch(0, 0)
+        deg_layout.setColumnStretch(1, 1)
+        deg_layout.setColumnStretch(2, 0)
+        fm = self.sr_value_label.fontMetrics()
+        longest = max(
+            (fm.horizontalAdvance(self._sr_text(f)) for f in range(1, 65)),
+            default=0,
+        )
+        longest = max(longest, fm.horizontalAdvance(self._bit_text(16)))
+        label_w = longest + 16
+        for lbl in (self.sr_value_label, self.bit_value_label):
+            lbl.setFixedWidth(label_w)
+            lbl.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Preferred)
+        label_w0 = fm.horizontalAdvance("Sample-rate reduction:") + 8
+        deg_layout.setColumnMinimumWidth(0, label_w0)
+
         main_layout.addWidget(deg_group)
 
-        # --- Transport controls ---
+        # --- Transport ---
         transport_layout = QtWidgets.QHBoxLayout()
         self.play_btn = QtWidgets.QPushButton("▶ Play")
         self.play_btn.clicked.connect(self._on_play)
@@ -406,7 +346,6 @@ class MainWindow(QtWidgets.QMainWindow):
         transport_layout.addWidget(self.stop_btn)
         transport_layout.addStretch(1)
 
-        # waveform window width control
         transport_layout.addWidget(QtWidgets.QLabel("Waveform window:"))
         self.wave_window_spin = QtWidgets.QSpinBox()
         self.wave_window_spin.setRange(2, 200)
@@ -414,23 +353,21 @@ class MainWindow(QtWidgets.QMainWindow):
         self.wave_window_spin.setSuffix(" ms")
         self.wave_window_spin.valueChanged.connect(self._on_wave_window_changed)
         transport_layout.addWidget(self.wave_window_spin)
-
         main_layout.addLayout(transport_layout)
 
-        # --- Waveform + Spectrum plots (stacked) ---
+        # --- Plots ---
         self.canvas = ScopeCanvas(self)
         main_layout.addWidget(self.canvas, 1)
 
-        # --- Status bar ---
         self.status = self.statusBar()
         self.status.showMessage("Ready.")
-
         self._update_param_labels()
 
     # ----------------------------------------------------------- devices --
     def _populate_devices(self):
         self.device_combo.blockSignals(True)
         self.device_combo.clear()
+        self._device_indices = []
         try:
             devices = sd.query_devices()
         except Exception as e:
@@ -438,13 +375,11 @@ class MainWindow(QtWidgets.QMainWindow):
             self.device_combo.blockSignals(False)
             return
         default_out = sd.default.device[1] if isinstance(sd.default.device, (list, tuple)) else None
-        self._device_indices = []
         for i, d in enumerate(devices):
             if d.get("max_output_channels", 0) > 0:
                 label = f"{i}: {d['name']} ({d['max_output_channels']} ch, {int(d['default_samplerate'])} Hz)"
                 self.device_combo.addItem(label)
                 self._device_indices.append(i)
-        # select default output device if possible
         if default_out in self._device_indices:
             self.device_combo.setCurrentIndex(self._device_indices.index(default_out))
         elif self._device_indices:
@@ -452,19 +387,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self.device_combo.blockSignals(False)
         self._on_device_changed()
 
-    def _on_device_changed(self):
-        if not getattr(self, "_device_indices", None):
+    def _on_device_changed(self, *_):
+        if not self._device_indices:
             return
         idx = self.device_combo.currentIndex()
         if 0 <= idx < len(self._device_indices):
-            dev_index = self._device_indices[idx]
-            self.engine.set_device(dev_index)
-            was_playing = self.engine.stream is not None
-            if was_playing:
-                self.engine.start()  # restart on new device
+            self.engine.set_device(self._device_indices[idx])
+            if self.engine.stream is not None:
+                self.engine.start()
 
     # ------------------------------------------------------------ source --
-    def _on_source_changed(self):
+    def _on_source_changed(self, *_):
         self.current_mode = "sine" if self.radio_sine.isChecked() else "file"
         self.sine_freq_spin.setEnabled(self.current_mode == "sine")
         self.load_file_btn.setEnabled(self.current_mode == "file")
@@ -485,7 +418,7 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             data, fs = sf.read(path, always_2d=False)
             if data.ndim > 1:
-                data = data.mean(axis=1)  # downmix to mono
+                data = data.mean(axis=1)
             data = data.astype(np.float64)
             peak = np.max(np.abs(data)) if len(data) else 1.0
             if peak > 0:
@@ -499,55 +432,51 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _rebuild_source(self):
         fs = self.NATIVE_FS
-        if self.current_mode == "sine":
+        if self.current_mode == "sine" or self.loaded_file_data is None:
             data = generate_sine(self.sine_freq, self.SINE_DURATION, fs)
         else:
-            if self.loaded_file_data is None:
-                data = generate_sine(self.sine_freq, self.SINE_DURATION, fs)
-            else:
-                raw, raw_fs = self.loaded_file_data
-                if raw_fs != fs:
-                    data = self._resample_linear(raw, raw_fs, fs)
-                else:
-                    data = raw
+            raw, raw_fs = self.loaded_file_data
+            data = self._resample_linear(raw, raw_fs, fs) if raw_fs != fs else raw
+        self.engine.sr_factor = self.sr_slider.value()
+        self.engine.bits = self.bit_slider.value()
         self.engine.load_source(data, fs)
-        self._apply_params_to_engine()
 
     @staticmethod
     def _resample_linear(x, fs_in, fs_out):
-        """Simple, dependency-free linear-interpolation resampler
-        (used only to bring source material to the playback rate;
-        not part of the demonstrated degradation effects)."""
         if fs_in == fs_out or len(x) == 0:
             return x
-        duration = len(x) / fs_in
-        n_out = int(round(duration * fs_out))
+        n_out = int(round(len(x) / fs_in * fs_out))
         t_in = np.arange(len(x)) / fs_in
         t_out = np.arange(n_out) / fs_out
         return np.interp(t_out, t_in, x)
 
     # ------------------------------------------------------------ params --
-    def _on_params_changed(self):
+    def _on_params_changed(self, *_):
+        # Cheap: update labels and flag for the timer to apply the DSP.
         self._update_param_labels()
-        self._apply_params_to_engine()
+        self._params_dirty = True
 
     def _on_wave_window_changed(self, val):
         self.WAVE_WINDOW_MS = float(val)
 
     def _apply_params_to_engine(self):
-        sr_factor = self.sr_slider.value()
-        bits = self.bit_slider.value()
-        self.engine.update_params(sr_factor, bits)
+        self.engine.update_params(self.sr_slider.value(), self.bit_slider.value())
+
+    def _sr_text(self, sr_factor):
+        eff_fs = self.NATIVE_FS / sr_factor
+        return f"÷{sr_factor}  (≈ {eff_fs:,.0f} Hz, Nyquist ≈ {eff_fs / 2:,.0f} Hz)"
+
+    @staticmethod
+    def _bit_text(bits):
+        return f"{bits}-bit  ({2 ** bits} levels)"
 
     def _update_param_labels(self):
-        sr_factor = self.sr_slider.value()
-        bits = self.bit_slider.value()
-        eff_fs = self.NATIVE_FS / sr_factor
-        self.sr_value_label.setText(f"÷{sr_factor}  (≈ {eff_fs:,.0f} Hz, Nyquist ≈ {eff_fs/2:,.0f} Hz)")
-        self.bit_value_label.setText(f"{bits}-bit  ({2**bits} levels)")
+        self.sr_value_label.setText(self._sr_text(self.sr_slider.value()))
+        self.bit_value_label.setText(self._bit_text(self.bit_slider.value()))
 
     # --------------------------------------------------------- transport --
     def _on_play(self):
+        self._flush_params()
         self.engine.start()
         self.status.showMessage("Playing…")
 
@@ -559,34 +488,33 @@ class MainWindow(QtWidgets.QMainWindow):
         self.status.showMessage(f"Audio error: {msg}")
         QtWidgets.QMessageBox.warning(self, "Playback error", msg)
 
+    def _flush_params(self):
+        if self._params_dirty:
+            self._params_dirty = False
+            self._apply_params_to_engine()
+
     # ------------------------------------------------------------ plots --
     def refresh_plots(self):
-        orig = self.engine.source
-        proc, fs = self.engine.get_processed_preview()
-        sr_factor = self.sr_slider.value()
-        new_nyquist = (fs / sr_factor) / 2.0
+        self._flush_params()
 
-        if len(orig) == 0:
+        orig, proc, fs, pos = self.engine.get_snapshot()
+        if len(orig) == 0 or len(proc) == 0:
             return
+        new_nyquist = (fs / self.sr_slider.value()) / 2.0
 
-        # Waveform view: a short scrolling window anchored at the current
-        # playhead position, so the live waveform tracks what is audible
-        # right now (falls back to the start of the buffer if not playing).
         n_win = int(fs * self.WAVE_WINDOW_MS / 1000.0)
         n_win = max(2, min(n_win, len(orig), len(proc)))
-        pos = self.engine.get_playhead()
         start = pos if pos + n_win <= len(orig) else max(0, len(orig) - n_win)
         orig_win = orig[start:start + n_win]
         proc_win = proc[start:start + n_win] if start + n_win <= len(proc) else proc[:n_win]
         self.canvas.update_waveform(orig_win, proc_win, fs, self.WAVE_WINDOW_MS)
 
-        # Spectrum view: use a longer chunk for good frequency resolution.
-        n_spec = min(len(orig), 65536)
+        n_spec = min(len(orig), 16384)
         self.canvas.update_spectrum(orig[:n_spec], proc[:n_spec], fs, new_nyquist)
-
         self.canvas.redraw()
 
     def closeEvent(self, event):
+        self.update_timer.stop()
         self.engine.stop()
         event.accept()
 
