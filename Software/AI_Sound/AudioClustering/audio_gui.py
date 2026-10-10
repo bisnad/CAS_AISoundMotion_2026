@@ -9,12 +9,13 @@ import audio_export
 AudioGui for the clustering tool.
 
 - Several audio features can be checked and combined for clustering.
-- Excerpt length and overlap are set in milliseconds (hop = length - overlap).
+- Excerpt length and overlap are entered in SECONDS (hop = length - overlap).
+  Internally the pipeline still works in milliseconds, and the config keys
+  excerpt_length_ms / excerpt_offset_ms are unchanged.
 - "apply analysis settings" re-slices / computes only missing features /
   re-clusters on a background QThread; "load audio file..." uses the same
-  widgets. The load button sits at the top, below the output device pulldown.
-- NEW: "save clusters as audio files..." asks for a folder and writes one WAV
-  per cluster (see audio_export.py), on a background thread.
+  widgets and sits at the top, below the output device pulldown.
+- "save clusters as audio files..." writes one WAV per cluster (audio_export.py).
 """
 
 config = {
@@ -25,6 +26,8 @@ config = {
     "excerpt_length_ms": 100,
     "excerpt_offset_ms": 90,
 }
+
+SECONDS_DECIMALS = 3   # 1 ms resolution
 
 
 class _AnalysisWorker(QObject):
@@ -116,20 +119,25 @@ class AudioGui(QtWidgets.QWidget):
         device_layout.addRow(self.q_load_file_button)
         device_layout.addRow(self.q_status_label)
 
-        # ---------------- excerpts (ms) ----------------
+        # ---------------- excerpts (seconds) ----------------
 
-        length_ms = int(config.get("excerpt_length_ms", 100))
-        offset_ms = int(config.get("excerpt_offset_ms", 90))
+        length_s = float(config.get("excerpt_length_ms", 100)) / 1000.0
+        offset_s = float(config.get("excerpt_offset_ms", 90)) / 1000.0
+        overlap_s = max(0.0, length_s - offset_s)
 
-        self.q_length_spin = QtWidgets.QSpinBox()
-        self.q_length_spin.setRange(1, 60000)
-        self.q_length_spin.setSuffix(" ms")
-        self.q_length_spin.setValue(length_ms)
+        self.q_length_spin = QtWidgets.QDoubleSpinBox()
+        self.q_length_spin.setDecimals(SECONDS_DECIMALS)
+        self.q_length_spin.setSingleStep(0.01)
+        self.q_length_spin.setRange(0.001, 60.0)
+        self.q_length_spin.setSuffix(" s")
+        self.q_length_spin.setValue(length_s)
 
-        self.q_overlap_spin = QtWidgets.QSpinBox()
-        self.q_overlap_spin.setRange(0, max(0, length_ms - 1))
-        self.q_overlap_spin.setSuffix(" ms")
-        self.q_overlap_spin.setValue(max(0, length_ms - offset_ms))
+        self.q_overlap_spin = QtWidgets.QDoubleSpinBox()
+        self.q_overlap_spin.setDecimals(SECONDS_DECIMALS)
+        self.q_overlap_spin.setSingleStep(0.01)
+        self.q_overlap_spin.setRange(0.0, max(0.0, length_s - 0.001))
+        self.q_overlap_spin.setSuffix(" s")
+        self.q_overlap_spin.setValue(overlap_s)
 
         self.q_excerpt_info_label = QtWidgets.QLabel("")
         self.q_excerpt_info_label.setWordWrap(True)
@@ -265,19 +273,23 @@ class AudioGui(QtWidgets.QWidget):
                 names.append(item.data(Qt.UserRole))
         return names
 
+    def get_length_ms(self):
+        return round(self.q_length_spin.value() * 1000.0, 3)
+
     def get_offset_ms(self):
-        return max(1, self.q_length_spin.value() - self.q_overlap_spin.value())
+        """Hop between excerpt starts in ms = length - overlap (at least 1 ms)."""
+        return max(1.0, round((self.q_length_spin.value() - self.q_overlap_spin.value()) * 1000.0, 3))
 
     def update_excerpt_info(self, *args):
-        length_ms = self.q_length_spin.value()
+        length_ms = self.get_length_ms()
         offset_ms = self.get_offset_ms()
         sample_rate = self.pipeline.get_sample_rate()
         count = cp.count_excerpts(self.pipeline.get_duration_ms(), length_ms, offset_ms)
 
-        text = "hop {} ms, about {} excerpts".format(offset_ms, count)
+        text = "hop {:.3f} s, about {} excerpts".format(offset_ms / 1000.0, count)
         minimum = cp.min_excerpt_length_ms(sample_rate)
         if length_ms < minimum:
-            text += " - length is below the analysis minimum of {:.1f} ms at {} Hz".format(minimum, sample_rate)
+            text += " - length is below the analysis minimum of {:.3f} s at {} Hz".format(minimum / 1000.0, sample_rate)
         elif count > cp.MAX_EXCERPTS:
             text += " - above the limit of {}".format(cp.MAX_EXCERPTS)
         self.q_excerpt_info_label.setText(text)
@@ -292,8 +304,8 @@ class AudioGui(QtWidgets.QWidget):
         self.q_feature_info_label.setText("clustering on {} dimensions in total: {}".format(
             sum(dimensions.values()), ", ".join(parts)))
 
-    def change_excerpt_length(self, length_ms):
-        self.q_overlap_spin.setMaximum(max(0, length_ms - 1))
+    def change_excerpt_length(self, length_s):
+        self.q_overlap_spin.setMaximum(max(0.0, length_s - 0.001))
         self.update_excerpt_info()
 
     # ---------------- live handlers ----------------
@@ -399,12 +411,12 @@ class AudioGui(QtWidgets.QWidget):
             self.q_status_label.setText("select at least one audio feature.")
             return
 
-        length_ms = self.q_length_spin.value()
+        length_ms = self.get_length_ms()
         offset_ms = self.get_offset_ms()
 
         self.synthesis.stop()
-        self._set_busy(True, "analyzing {} feature(s), {} ms excerpts, {} ms hop...".format(
-            len(feature_names), length_ms, offset_ms))
+        self._set_busy(True, "analyzing {} feature(s), {:.3f} s excerpts, {:.3f} s hop...".format(
+            len(feature_names), length_ms / 1000.0, offset_ms / 1000.0))
 
         worker = _AnalysisWorker(self.pipeline, self.model, file_path, length_ms, offset_ms, feature_names)
         worker.finished.connect(self._on_analysis_finished)
@@ -419,8 +431,8 @@ class AudioGui(QtWidgets.QWidget):
         self.update_excerpt_info()
         self.update_feature_info(info["dimensions"])
 
-        self._set_busy(False, "{} excerpts of {} ms (hop {} ms) at {} Hz.".format(
-            info["excerpt_count"], info["length_ms"], info["offset_ms"], info["sample_rate"]))
+        self._set_busy(False, "{} excerpts of {:.3f} s (hop {:.3f} s) at {} Hz.".format(
+            info["excerpt_count"], info["length_ms"] / 1000.0, info["offset_ms"] / 1000.0, info["sample_rate"]))
 
     def _on_analysis_failed(self, error_message):
         self._set_busy(False, "analysis failed: {}".format(error_message))
