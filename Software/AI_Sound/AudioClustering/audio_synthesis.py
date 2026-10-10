@@ -3,48 +3,35 @@ import numpy as np
 import sounddevice as sd
 
 """
-AudioSynthesis reconstructs a continuous, loopable waveform for the
-currently selected cluster by overlap-adding all audio excerpts belonging
-to that cluster (crossfaded with a trapezoidal envelope derived from the
-excerpt length/offset), then plays that waveform back in real time.
+AudioSynthesis reconstructs a continuous, loopable waveform for the currently
+selected cluster by overlap-adding all excerpts of that cluster (crossfaded
+with an envelope derived from excerpt length/offset) and plays it back in
+real time through a sounddevice OutputStream callback.
 
-Revisions vs. the original audio_synthesis.py:
+Revisions in this version:
 
-1. Playback engine switched from pyaudio to sounddevice, matching
-   audio_receiver.py from the AudioAnalysis tool. Uses a real-time
-   sd.OutputStream CALLBACK (PortAudio's own thread) rather than a manual
-   buffer passed to a pyaudio stream_callback - functionally similar, but
-   this keeps both tools on one consistent audio backend/dependency and
-   exposes the same list_output_devices()/set_output_device() interface.
-
-2. update() (renamed internally as _fill_output, called from the stream
-   callback) is now guarded by a lock, since cluster_audio can be replaced
-   at any time by setClusterLabel()/selectAudioFeature() from the GUI or
-   OSC thread while the audio callback is concurrently reading from it -
-   the original had a race condition here (no synchronization between the
-   audio thread and cluster-audio rebuilding).
-
-3. Rebuilding cluster_audio (_create_cluster_audio) can be relatively slow
-   for large clusters; it now happens outside the lock and the result is
-   swapped in atomically, so playback is not blocked while the new cluster
-   waveform is being assembled - only briefly stalled for the pointer swap.
-
-4. Fixed a looping bug for the case where a cluster's waveform is SHORTER
-   than one audio callback buffer (buffer_length >= cluster_length): the
-   original always tiled starting from sample 0 on every callback,
-   restarting the loop phase each time and producing an audible
-   click/discontinuity at every buffer boundary. The tile now starts from
-   the current play_sample_index and advances it properly, so playback
-   loops seamlessly regardless of how the cluster length compares to the
-   callback buffer size.
+1. Excerpt length/offset (ms) and the sample rate can change at run time:
+   set_excerpt_params(length_ms, offset_ms, sample_rate) recomputes the sample
+   counts and the envelope, and restarts the output stream if the sample rate
+   changed while playing (previously the stream kept running at the old rate
+   after a new file with a different rate was loaded).
+2. The envelope now works for any overlap. Before, an overlap larger than half
+   the excerpt length produced an envelope longer than the excerpt (shape
+   mismatch). Fade length is now min(overlap, length // 2): linear fades with
+   an optional flat middle; with no overlap the envelope is flat.
+3. selectAudioFeatures(names) selects a COMBINATION of features;
+   selectAudioFeature(name) is kept and selects a single one.
+4. _create_cluster_audio uses the excerpt length of the actual excerpt array and
+   returns None on a mismatch, so a race between data swap and parameter
+   update cannot crash the GUI/OSC thread.
 """
 
 config = {
     "model": None,
     "audio_excerpts": None,
     "audio_sample_rate": 48000,
-    "audio_excerpt_length": 1000,
-    "audio_excerpt_offset": 900,
+    "audio_excerpt_length": 100,
+    "audio_excerpt_offset": 90,
     "output_device": None,
 }
 
@@ -53,65 +40,85 @@ class AudioSynthesis():
 
     def __init__(self, config):
         self.model = config["model"]
-        self.audio_sample_rate = config["audio_sample_rate"]
-        self.audio_excerpt_length = config["audio_excerpt_length"]
-        self.audio_excerpt_offset = config["audio_excerpt_offset"]
         self.output_device = config.get("output_device", None)
-
-        self.audio_excerpt_length_sc = int(self.audio_excerpt_length / 1000 * self.audio_sample_rate)
-        self.audio_excerpt_offset_sc = int(self.audio_excerpt_offset / 1000 * self.audio_sample_rate)
-
-        self._create_envelope()
-
-        self.cluster_label = 0
-        self.cluster_audio = None
-
-        self.play_sample_index = 0
 
         self._audio_lock = threading.Lock()
         self._output_stream = None
         self._running = threading.Event()
 
-    def _create_envelope(self):
+        self.cluster_label = 0
+        self.cluster_audio = None
+        self.play_sample_index = 0
 
-        overlap_sc = self.audio_excerpt_length_sc - self.audio_excerpt_offset_sc
+        self._apply_params(config["audio_excerpt_length"], config["audio_excerpt_offset"],
+                           config["audio_sample_rate"])
+
+    # ---------------- excerpt parameters ----------------
+
+    def _apply_params(self, length_ms, offset_ms, sample_rate):
+        self.audio_excerpt_length = length_ms
+        self.audio_excerpt_offset = offset_ms
+        self.audio_sample_rate = sample_rate
+
+        self.audio_excerpt_length_sc = max(1, int(round(length_ms / 1000 * sample_rate)))
+        self.audio_excerpt_offset_sc = max(1, int(round(offset_ms / 1000 * sample_rate)))
+
+        self._create_envelope()
+
+    def set_excerpt_params(self, length_ms, offset_ms, sample_rate=None):
+        """Call after the model has received excerpts of the new length."""
+        if sample_rate is None:
+            sample_rate = self.audio_sample_rate
+
+        rate_changed = (sample_rate != self.audio_sample_rate)
+        was_running = self._running.is_set()
+        if rate_changed and was_running:
+            self.stop()
+
+        self._apply_params(length_ms, offset_ms, sample_rate)
+
+        if rate_changed and was_running:
+            self.start()
+
+    def _create_envelope(self):
+        length_sc = self.audio_excerpt_length_sc
+        overlap_sc = length_sc - self.audio_excerpt_offset_sc
 
         if overlap_sc <= 0:
-            # no overlap between consecutive excerpts - use a flat envelope
-            self.audio_window_envelope = np.ones(self.audio_excerpt_length_sc, dtype=np.float32)
+            self.audio_window_envelope = np.ones(length_sc, dtype=np.float32)
             return
 
-        env_part1 = np.linspace(0.0, 1.0, overlap_sc)
-        env_part2 = np.ones(max(self.audio_excerpt_length_sc - 2 * overlap_sc, 0), dtype=np.float32)
-        env_part3 = np.linspace(1.0, 0.0, overlap_sc)
+        fade_sc = max(1, min(overlap_sc, length_sc // 2))
+        fade_in = np.linspace(0.0, 1.0, fade_sc, dtype=np.float32)
+        fade_out = fade_in[::-1]
+        flat = np.ones(length_sc - 2 * fade_sc, dtype=np.float32)
 
-        self.audio_window_envelope = np.concatenate((env_part1, env_part2, env_part3)).astype(np.float32)
+        self.audio_window_envelope = np.concatenate((fade_in, flat, fade_out)).astype(np.float32)
+
+    # ---------------- cluster audio ----------------
 
     def _create_cluster_audio(self, label):
-        """
-        Builds the overlap-added waveform for the given cluster label.
-        Returns None if the cluster has no excerpts. Does not touch
-        self.cluster_audio directly - the caller is responsible for
-        atomically swapping it in under the lock.
-        """
+        """Overlap-adds the excerpts of a cluster. Returns None if empty/inconsistent."""
         cluster_audio_excerpts = self.model.get_cluster_audio_excerpts(label)
 
         if cluster_audio_excerpts is None or cluster_audio_excerpts.shape[0] == 0:
             return None
 
-        excerpt_count = cluster_audio_excerpts.shape[0]
+        length_sc = cluster_audio_excerpts.shape[1]
+        offset_sc = self.audio_excerpt_offset_sc
+        envelope = self.audio_window_envelope
 
-        audio_cluster_sc = self.audio_excerpt_length_sc + self.audio_excerpt_offset_sc * (excerpt_count - 1)
-        cluster_audio = np.zeros(audio_cluster_sc, dtype=np.float32)
+        if envelope.shape[0] != length_sc:
+            return None
+
+        excerpt_count = cluster_audio_excerpts.shape[0]
+        cluster_audio = np.zeros(length_sc + offset_sc * (excerpt_count - 1), dtype=np.float32)
 
         insert_index = 0
         for audio_excerpt in cluster_audio_excerpts:
-            cluster_audio[insert_index:insert_index + self.audio_excerpt_length_sc] += (
-                audio_excerpt * self.audio_window_envelope
-            )
-            insert_index += self.audio_excerpt_offset_sc
+            cluster_audio[insert_index:insert_index + length_sc] += audio_excerpt * envelope
+            insert_index += offset_sc
 
-        # normalize to avoid clipping from overlapping envelope gains
         peak = np.max(np.abs(cluster_audio)) if cluster_audio.size > 0 else 0.0
         if peak > 1.0:
             cluster_audio = cluster_audio / peak
@@ -119,13 +126,11 @@ class AudioSynthesis():
         return cluster_audio
 
     def setClusterLabel(self, label):
-
         label_count = self.model.get_label_count()
         if label_count == 0:
             return
 
         label = int(max(0, min(label, label_count - 1)))
-
         new_cluster_audio = self._create_cluster_audio(label)
 
         with self._audio_lock:
@@ -133,10 +138,13 @@ class AudioSynthesis():
             self.cluster_audio = new_cluster_audio
             self.play_sample_index = 0
 
-    def selectAudioFeature(self, feature_name):
-
-        self.model.select_audio_feature(feature_name)
+    def selectAudioFeatures(self, feature_names):
+        """Cluster on a combination of features."""
+        self.model.set_selected_features(feature_names)
         self.setClusterLabel(0)
+
+    def selectAudioFeature(self, feature_name):
+        self.selectAudioFeatures([feature_name])
 
     def get_cluster_label(self):
         return self.cluster_label
@@ -144,45 +152,34 @@ class AudioSynthesis():
     # ---------------- real-time playback ----------------
 
     def _fill_output(self, audio_buffer):
-        """
-        Fills audio_buffer (1D float32 array) with the next samples of the
-        current cluster's waveform, looping seamlessly regardless of
-        whether the cluster is longer or shorter than the buffer. Leaves
-        the buffer as silence if no cluster audio is available yet.
-        """
         with self._audio_lock:
             cluster_audio = self.cluster_audio
             play_index = self.play_sample_index
 
-            if cluster_audio is None:
-                audio_buffer[:] = 0.0
-                return
+        if cluster_audio is None:
+            audio_buffer[:] = 0.0
+            return
 
-            buffer_length = audio_buffer.shape[0]
-            cluster_length = cluster_audio.shape[0]
+        buffer_length = audio_buffer.shape[0]
+        cluster_length = cluster_audio.shape[0]
+        play_index = play_index % cluster_length
 
-            if buffer_length >= cluster_length:
-                # cluster shorter than (or equal to) the callback buffer -
-                # tile it starting from the CURRENT play_index so playback
-                # continues seamlessly across callback boundaries instead
-                # of restarting the loop phase every callback
-                reps = (buffer_length + play_index) // cluster_length + 2
-                tiled = np.tile(cluster_audio, reps)
-                audio_buffer[:] = tiled[play_index:play_index + buffer_length]
-                self.play_sample_index = (play_index + buffer_length) % cluster_length
-                return
+        if buffer_length >= cluster_length:
+            reps = (buffer_length + play_index) // cluster_length + 2
+            tiled = np.tile(cluster_audio, reps)
+            audio_buffer[:] = tiled[play_index:play_index + buffer_length]
+            self.play_sample_index = (play_index + buffer_length) % cluster_length
+            return
 
-            if play_index + buffer_length <= cluster_length:
-                audio_buffer[:] = cluster_audio[play_index:play_index + buffer_length]
-                self.play_sample_index = play_index + buffer_length
-            else:
-                part1_length = cluster_length - play_index
-                audio_buffer[:part1_length] = cluster_audio[play_index:cluster_length]
-
-                part2_length = buffer_length - part1_length
-                audio_buffer[part1_length:] = cluster_audio[0:part2_length]
-
-                self.play_sample_index = part2_length
+        if play_index + buffer_length <= cluster_length:
+            audio_buffer[:] = cluster_audio[play_index:play_index + buffer_length]
+            self.play_sample_index = play_index + buffer_length
+        else:
+            part1_length = cluster_length - play_index
+            audio_buffer[:part1_length] = cluster_audio[play_index:cluster_length]
+            part2_length = buffer_length - part1_length
+            audio_buffer[part1_length:] = cluster_audio[0:part2_length]
+            self.play_sample_index = part2_length
 
     def _output_callback(self, outdata, frames, time_info, status):
         buf = np.zeros(frames, dtype=np.float32)

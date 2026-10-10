@@ -2,72 +2,82 @@ import numpy as np
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import Qt, QTimer, QThread, QObject, pyqtSignal
 
+import clustering_pipeline as cp
+import audio_export
+
 """
 AudioGui for the clustering tool.
 
-NEW in this revision: a "load audio file..." button that lets the user pick
-a different audio file, re-run excerpt extraction + feature computation +
-clustering on it, and swap the results into the existing
-model/synthesis/control objects - without restarting the application.
-
-Because extraction + feature computation across potentially thousands of
-excerpts can take anywhere from a couple of seconds to tens of seconds,
-this runs on a background QThread (_LoadFileWorker) rather than blocking
-the GUI thread. While loading:
-- the load/start/stop buttons and cluster list are disabled
-- a status label shows "loading..." / the eventual result or error
-- once finished, model.set_data() swaps in the new excerpts/features,
-  create_clusters() re-clusters using whatever method/count/normalize
-  settings are already configured, and the cluster list refreshes.
-
-Layout (top to bottom):
-- output device dropdown
-- audio feature dropdown (which descriptor to cluster on)
-- cluster method dropdown (kmeans / minibatch_kmeans) + cluster count spinbox
-- normalize-features toggle
-- load audio file button + status label
-- start / stop buttons (control cluster audio PLAYBACK)
-- cluster list (one row per cluster label, showing excerpt count)
-- OSC address display
+- Several audio features can be checked and combined for clustering.
+- Excerpt length and overlap are set in milliseconds (hop = length - overlap).
+- "apply analysis settings" re-slices / computes only missing features /
+  re-clusters on a background QThread; "load audio file..." uses the same
+  widgets. The load button sits at the top, below the output device pulldown.
+- NEW: "save clusters as audio files..." asks for a folder and writes one WAV
+  per cluster (see audio_export.py), on a background thread.
 """
 
 config = {
     "model": None,
     "synthesis": None,
     "control": None,
-    "build_clustering_data": None,
+    "pipeline": None,
     "excerpt_length_ms": 100,
     "excerpt_offset_ms": 90,
-    "analysis_seconds": 60.0,
 }
 
 
-class _LoadFileWorker(QObject):
-    """
-    Runs build_clustering_data(file_path, ...) on a background thread.
-    Emits finished(audio_excerpts, audio_features, sample_rate) on success,
-    or failed(error_message) on exception.
-    """
-    finished = pyqtSignal(object, object, object)
+class _AnalysisWorker(QObject):
+    """Runs pipeline.prepare() + model.set_data() + clustering off the GUI thread."""
+    finished = pyqtSignal(object)
     failed = pyqtSignal(str)
 
-    def __init__(self, build_fn, file_path, excerpt_length_ms, excerpt_offset_ms, analysis_seconds):
+    def __init__(self, pipeline, model, file_path, length_ms, offset_ms, feature_names):
         super().__init__()
-        self.build_fn = build_fn
+        self.pipeline = pipeline
+        self.model = model
         self.file_path = file_path
-        self.excerpt_length_ms = excerpt_length_ms
-        self.excerpt_offset_ms = excerpt_offset_ms
-        self.analysis_seconds = analysis_seconds
+        self.length_ms = length_ms
+        self.offset_ms = offset_ms
+        self.feature_names = feature_names
 
     def run(self):
         try:
-            audio_excerpts, audio_features, sample_rate = self.build_fn(
-                self.file_path,
-                excerpt_length_ms=self.excerpt_length_ms,
-                excerpt_offset_ms=self.excerpt_offset_ms,
-                analysis_seconds=self.analysis_seconds,
-            )
-            self.finished.emit(audio_excerpts, audio_features, sample_rate)
+            excerpts, features, sample_rate = self.pipeline.prepare(
+                self.file_path, self.length_ms, self.offset_ms, self.feature_names)
+
+            self.model.set_data(excerpts, features, self.feature_names)
+            self.model.create_clusters()
+
+            self.finished.emit({
+                "excerpt_count": int(excerpts.shape[0]),
+                "sample_rate": int(sample_rate),
+                "length_ms": self.length_ms,
+                "offset_ms": self.offset_ms,
+                "dimensions": self.model.get_feature_dimensions(),
+            })
+        except Exception as e:
+            self.failed.emit(str(e))
+
+
+class _ExportWorker(QObject):
+    """Writes one audio file per cluster off the GUI thread."""
+    finished = pyqtSignal(object)
+    failed = pyqtSignal(str)
+    progress = pyqtSignal(int, int)
+
+    def __init__(self, model, synthesis, folder):
+        super().__init__()
+        self.model = model
+        self.synthesis = synthesis
+        self.folder = folder
+
+    def run(self):
+        try:
+            written = audio_export.export_clusters(
+                self.model, self.synthesis, self.folder,
+                progress=lambda done, total: self.progress.emit(done, total))
+            self.finished.emit({"folder": self.folder, "files": written})
         except Exception as e:
             self.failed.emit(str(e))
 
@@ -80,17 +90,13 @@ class AudioGui(QtWidgets.QWidget):
         self.model = config["model"]
         self.synthesis = config["synthesis"]
         self.control = config.get("control", None)
-        self.build_clustering_data = config.get("build_clustering_data", None)
-        self.excerpt_length_ms = config.get("excerpt_length_ms", 100)
-        self.excerpt_offset_ms = config.get("excerpt_offset_ms", 90)
-        self.analysis_seconds = config.get("analysis_seconds", 60.0)
+        self.pipeline = config["pipeline"]
 
-        self._load_thread = None
-        self._load_worker = None
+        self._thread = None
+        self._worker = None
 
-        # ---------------- output device (top of window) ----------------
+        # ---------------- output device + load file (top) ----------------
 
-        self.q_output_device_label = QtWidgets.QLabel("output device:")
         self.q_output_device_combo = QtWidgets.QComboBox()
         self.output_device_mapping = []
         for idx, name in self.synthesis.list_output_devices():
@@ -98,78 +104,120 @@ class AudioGui(QtWidgets.QWidget):
             self.q_output_device_combo.addItem("{}: {}".format(idx, name))
         self.q_output_device_combo.currentIndexChanged.connect(self.change_output_device)
 
-        self.q_device_grid = QtWidgets.QGridLayout()
-        self.q_device_grid.addWidget(self.q_output_device_label, 0, 0)
-        self.q_device_grid.addWidget(self.q_output_device_combo, 0, 1)
+        self.q_load_file_button = QtWidgets.QPushButton("load audio file...", self)
+        self.q_load_file_button.clicked.connect(self.load_file)
 
-        # ---------------- feature / clustering controls ----------------
+        self.q_status_label = QtWidgets.QLabel("")
+        self.q_status_label.setWordWrap(True)
 
-        self.q_feature_label = QtWidgets.QLabel("audio feature:")
-        self.q_feature_combo = QtWidgets.QComboBox()
-        self._populate_feature_combo()
-        self.q_feature_combo.currentIndexChanged.connect(self.change_feature)
+        device_box = QtWidgets.QGroupBox("output / input")
+        device_layout = QtWidgets.QFormLayout(device_box)
+        device_layout.addRow("output device:", self.q_output_device_combo)
+        device_layout.addRow(self.q_load_file_button)
+        device_layout.addRow(self.q_status_label)
 
-        self.q_method_label = QtWidgets.QLabel("cluster method:")
+        # ---------------- excerpts (ms) ----------------
+
+        length_ms = int(config.get("excerpt_length_ms", 100))
+        offset_ms = int(config.get("excerpt_offset_ms", 90))
+
+        self.q_length_spin = QtWidgets.QSpinBox()
+        self.q_length_spin.setRange(1, 60000)
+        self.q_length_spin.setSuffix(" ms")
+        self.q_length_spin.setValue(length_ms)
+
+        self.q_overlap_spin = QtWidgets.QSpinBox()
+        self.q_overlap_spin.setRange(0, max(0, length_ms - 1))
+        self.q_overlap_spin.setSuffix(" ms")
+        self.q_overlap_spin.setValue(max(0, length_ms - offset_ms))
+
+        self.q_excerpt_info_label = QtWidgets.QLabel("")
+        self.q_excerpt_info_label.setWordWrap(True)
+
+        self.q_length_spin.valueChanged.connect(self.change_excerpt_length)
+        self.q_overlap_spin.valueChanged.connect(self.update_excerpt_info)
+
+        excerpt_box = QtWidgets.QGroupBox("excerpts")
+        excerpt_layout = QtWidgets.QFormLayout(excerpt_box)
+        excerpt_layout.addRow("excerpt length:", self.q_length_spin)
+        excerpt_layout.addRow("overlap:", self.q_overlap_spin)
+        excerpt_layout.addRow(self.q_excerpt_info_label)
+
+        # ---------------- audio features (multi select) ----------------
+
+        self.q_feature_list = QtWidgets.QListWidget()
+        self.q_feature_list.setMinimumHeight(190)
+        selected = set(self.model.get_selected_features())
+        for name in cp.get_all_feature_names():
+            text = name + ("  (slow)" if cp.is_slow_feature(name) else "")
+            item = QtWidgets.QListWidgetItem(text)
+            item.setData(Qt.UserRole, name)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Checked if name in selected else Qt.Unchecked)
+            self.q_feature_list.addItem(item)
+
+        self.q_apply_button = QtWidgets.QPushButton("apply analysis settings", self)
+        self.q_apply_button.clicked.connect(self.apply_settings)
+
+        self.q_feature_info_label = QtWidgets.QLabel("")
+        self.q_feature_info_label.setWordWrap(True)
+
+        feature_box = QtWidgets.QGroupBox("audio features (check several to combine)")
+        feature_layout = QtWidgets.QVBoxLayout(feature_box)
+        feature_layout.addWidget(self.q_feature_list)
+        feature_layout.addWidget(self.q_apply_button)
+        feature_layout.addWidget(self.q_feature_info_label)
+
+        # ---------------- clustering ----------------
+
         self.q_method_combo = QtWidgets.QComboBox()
         self.q_method_combo.addItem("kmeans")
         self.q_method_combo.addItem("minibatch_kmeans")
         self.q_method_combo.setCurrentText(self.model.cluster_method)
         self.q_method_combo.currentTextChanged.connect(self.change_method)
 
-        self.q_cluster_count_label = QtWidgets.QLabel("cluster count:")
         self.q_cluster_count_spin = QtWidgets.QSpinBox(self)
-        self.q_cluster_count_spin.setMinimum(2)
-        self.q_cluster_count_spin.setMaximum(500)
+        self.q_cluster_count_spin.setRange(2, 500)
         self.q_cluster_count_spin.setValue(self.model.cluster_count)
         self.q_cluster_count_spin.valueChanged.connect(self.change_cluster_count)
 
-        self.q_normalize_toggle = QtWidgets.QCheckBox("normalize features", self)
+        self.q_normalize_toggle = QtWidgets.QCheckBox("normalize features (z-score)", self)
         self.q_normalize_toggle.setChecked(self.model.normalize)
         self.q_normalize_toggle.stateChanged.connect(lambda: self.toggle_normalize(self.q_normalize_toggle))
 
-        self.q_feature_grid = QtWidgets.QGridLayout()
-        self.q_feature_grid.addWidget(self.q_feature_label, 0, 0)
-        self.q_feature_grid.addWidget(self.q_feature_combo, 0, 1)
-        self.q_feature_grid.addWidget(self.q_method_label, 1, 0)
-        self.q_feature_grid.addWidget(self.q_method_combo, 1, 1)
-        self.q_feature_grid.addWidget(self.q_cluster_count_label, 2, 0)
-        self.q_feature_grid.addWidget(self.q_cluster_count_spin, 2, 1)
-        self.q_feature_grid.addWidget(self.q_normalize_toggle, 3, 0, 1, 2)
+        self.q_equal_weight_toggle = QtWidgets.QCheckBox("equal weight per feature", self)
+        self.q_equal_weight_toggle.setChecked(self.model.equal_feature_weight)
+        self.q_equal_weight_toggle.setToolTip(
+            "Scale each feature block by 1/sqrt(dimensions) so a high-dimensional feature "
+            "(e.g. mel spectrogram) does not outweigh a low-dimensional one (e.g. RMS).")
+        self.q_equal_weight_toggle.stateChanged.connect(lambda: self.toggle_equal_weight(self.q_equal_weight_toggle))
 
-        # ---------------- load audio file ----------------
+        cluster_box = QtWidgets.QGroupBox("clustering")
+        cluster_layout = QtWidgets.QFormLayout(cluster_box)
+        cluster_layout.addRow("cluster method:", self.q_method_combo)
+        cluster_layout.addRow("cluster count:", self.q_cluster_count_spin)
+        cluster_layout.addRow(self.q_normalize_toggle)
+        cluster_layout.addRow(self.q_equal_weight_toggle)
 
-        self.q_load_file_button = QtWidgets.QPushButton("load audio file...", self)
-        self.q_load_file_button.clicked.connect(self.load_file)
-
-        self.q_load_status_label = QtWidgets.QLabel("")
-        self.q_load_status_label.setWordWrap(True)
-
-        self.q_load_grid = QtWidgets.QVBoxLayout()
-        self.q_load_grid.addWidget(self.q_load_file_button)
-        self.q_load_grid.addWidget(self.q_load_status_label)
-
-        # ---------------- start / stop playback ----------------
+        # ---------------- start / stop / save ----------------
 
         self.q_start_button = QtWidgets.QPushButton("start", self)
         self.q_start_button.clicked.connect(self.start)
-
         self.q_stop_button = QtWidgets.QPushButton("stop", self)
         self.q_stop_button.clicked.connect(self.stop)
 
-        self.q_button_grid = QtWidgets.QGridLayout()
-        self.q_button_grid.addWidget(self.q_start_button, 0, 0)
-        self.q_button_grid.addWidget(self.q_stop_button, 0, 1)
+        button_layout = QtWidgets.QHBoxLayout()
+        button_layout.addWidget(self.q_start_button)
+        button_layout.addWidget(self.q_stop_button)
+
+        self.q_save_button = QtWidgets.QPushButton("save clusters as audio files...", self)
+        self.q_save_button.setToolTip("Writes one WAV file per cluster into a folder you choose.")
+        self.q_save_button.clicked.connect(self.save_clusters)
 
         # ---------------- cluster list ----------------
 
-        self.q_cluster_list_label = QtWidgets.QLabel("clusters (select to play):")
         self.q_cluster_list = QtWidgets.QListWidget()
         self.q_cluster_list.currentRowChanged.connect(self.change_cluster_selection)
-
-        self.q_cluster_grid = QtWidgets.QVBoxLayout()
-        self.q_cluster_grid.addWidget(self.q_cluster_list_label)
-        self.q_cluster_grid.addWidget(self.q_cluster_list)
-
         self.refresh_cluster_list()
 
         self.q_refresh_timer = QTimer(self)
@@ -177,49 +225,78 @@ class AudioGui(QtWidgets.QWidget):
         self.q_refresh_timer.timeout.connect(self.refresh_cluster_list)
         self.q_refresh_timer.start()
 
-        # ---------------- OSC control address display ----------------
+        # ---------------- OSC ----------------
 
         self.q_osc_label = QtWidgets.QLabel("")
+        self.q_osc_label.setWordWrap(True)
         if self.control is not None:
             self.q_osc_label.setText(
-                "OSC control listening on {}:{}  (/synth/clusterlabel, /synth/audiofeature, "
-                "/synth/clustercount, /synth/clustermethod)".format(self.control.ip, self.control.port)
-            )
-        self.q_osc_label.setWordWrap(True)
+                "OSC control listening on {}:{} (/synth/clusterlabel, /synth/audiofeature "
+                "[one or more names], /synth/clustercount, /synth/clustermethod)".format(
+                    self.control.ip, self.control.port))
 
-        # ---------------- overall layout ----------------
+        # ---------------- layout ----------------
 
-        self.q_grid = QtWidgets.QGridLayout()
-        self.q_grid.addLayout(self.q_device_grid, 0, 0)
-        self.q_grid.addLayout(self.q_feature_grid, 1, 0)
-        self.q_grid.addLayout(self.q_load_grid, 2, 0)
-        self.q_grid.addLayout(self.q_button_grid, 3, 0)
-        self.q_grid.addLayout(self.q_cluster_grid, 4, 0)
-        self.q_grid.addWidget(self.q_osc_label, 5, 0)
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(device_box)
+        layout.addWidget(excerpt_box)
+        layout.addWidget(feature_box)
+        layout.addWidget(cluster_box)
+        layout.addLayout(button_layout)
+        layout.addWidget(self.q_save_button)
+        layout.addWidget(QtWidgets.QLabel("clusters (select to play):"))
+        layout.addWidget(self.q_cluster_list, 1)
+        layout.addWidget(self.q_osc_label)
+        self.setLayout(layout)
 
-        for row in range(6):
-            self.q_grid.setRowStretch(row, 0)
-        self.q_grid.setRowStretch(4, 1)
-
-        self.setLayout(self.q_grid)
-
-        self.setGeometry(50, 50, 420, 620)
+        self.setGeometry(50, 50, 460, 920)
         self.setWindowTitle("Audio Clustering")
 
-    # ---------------- feature combo helper ----------------
+        self.update_excerpt_info()
+        self.update_feature_info()
 
-    def _populate_feature_combo(self):
-        self.q_feature_combo.blockSignals(True)
-        self.q_feature_combo.clear()
-        self.feature_names = self.model.get_feature_names()
-        for name in self.feature_names:
-            self.q_feature_combo.addItem(name)
-        current_feature = self.model.get_current_feature()
-        if current_feature in self.feature_names:
-            self.q_feature_combo.setCurrentIndex(self.feature_names.index(current_feature))
-        self.q_feature_combo.blockSignals(False)
+    # ---------------- helpers ----------------
 
-    # ---------------- handlers ----------------
+    def get_checked_features(self):
+        names = []
+        for row in range(self.q_feature_list.count()):
+            item = self.q_feature_list.item(row)
+            if item.checkState() == Qt.Checked:
+                names.append(item.data(Qt.UserRole))
+        return names
+
+    def get_offset_ms(self):
+        return max(1, self.q_length_spin.value() - self.q_overlap_spin.value())
+
+    def update_excerpt_info(self, *args):
+        length_ms = self.q_length_spin.value()
+        offset_ms = self.get_offset_ms()
+        sample_rate = self.pipeline.get_sample_rate()
+        count = cp.count_excerpts(self.pipeline.get_duration_ms(), length_ms, offset_ms)
+
+        text = "hop {} ms, about {} excerpts".format(offset_ms, count)
+        minimum = cp.min_excerpt_length_ms(sample_rate)
+        if length_ms < minimum:
+            text += " - length is below the analysis minimum of {:.1f} ms at {} Hz".format(minimum, sample_rate)
+        elif count > cp.MAX_EXCERPTS:
+            text += " - above the limit of {}".format(cp.MAX_EXCERPTS)
+        self.q_excerpt_info_label.setText(text)
+
+    def update_feature_info(self, dimensions=None):
+        if dimensions is None:
+            dimensions = self.model.get_feature_dimensions()
+        if not dimensions:
+            self.q_feature_info_label.setText("no features selected")
+            return
+        parts = ["{} ({})".format(n, d) for n, d in dimensions.items()]
+        self.q_feature_info_label.setText("clustering on {} dimensions in total: {}".format(
+            sum(dimensions.values()), ", ".join(parts)))
+
+    def change_excerpt_length(self, length_ms):
+        self.q_overlap_spin.setMaximum(max(0, length_ms - 1))
+        self.update_excerpt_info()
+
+    # ---------------- live handlers ----------------
 
     def start(self):
         self.synthesis.start()
@@ -229,14 +306,7 @@ class AudioGui(QtWidgets.QWidget):
 
     def change_output_device(self, idx):
         if 0 <= idx < len(self.output_device_mapping):
-            device_id = self.output_device_mapping[idx]
-            self.synthesis.set_output_device(device_id)
-
-    def change_feature(self, idx):
-        if 0 <= idx < len(self.feature_names):
-            feature_name = self.feature_names[idx]
-            self.synthesis.selectAudioFeature(feature_name)
-            self.refresh_cluster_list()
+            self.synthesis.set_output_device(self.output_device_mapping[idx])
 
     def change_method(self, method_text):
         self.model.set_cluster_method(method_text)
@@ -250,6 +320,11 @@ class AudioGui(QtWidgets.QWidget):
 
     def toggle_normalize(self, widget):
         self.model.set_normalize(widget.isChecked())
+        self.synthesis.setClusterLabel(self.synthesis.get_cluster_label())
+        self.refresh_cluster_list()
+
+    def toggle_equal_weight(self, widget):
+        self.model.set_equal_feature_weight(widget.isChecked())
         self.synthesis.setClusterLabel(self.synthesis.get_cluster_label())
         self.refresh_cluster_list()
 
@@ -272,7 +347,7 @@ class AudioGui(QtWidgets.QWidget):
 
         selected_row = -1
         for row, (label, count) in enumerate(sorted(sizes.items())):
-            item = QtWidgets.QListWidgetItem("cluster {}  ({} excerpts)".format(label, count))
+            item = QtWidgets.QListWidgetItem("cluster {} ({} excerpts)".format(label, count))
             item.setData(Qt.UserRole, label)
             self.q_cluster_list.addItem(item)
             if label == current_label:
@@ -283,65 +358,101 @@ class AudioGui(QtWidgets.QWidget):
 
         self.q_cluster_list.blockSignals(False)
 
-    # ---------------- load audio file (background thread) ----------------
+    # ---------------- background tasks ----------------
 
     def _set_busy(self, busy, message=""):
-        self.q_load_file_button.setEnabled(not busy)
-        self.q_start_button.setEnabled(not busy)
-        self.q_stop_button.setEnabled(not busy)
-        self.q_cluster_list.setEnabled(not busy)
-        self.q_feature_combo.setEnabled(not busy)
-        self.q_method_combo.setEnabled(not busy)
-        self.q_cluster_count_spin.setEnabled(not busy)
-        self.q_normalize_toggle.setEnabled(not busy)
-        self.q_load_status_label.setText(message)
+        for widget in (self.q_load_file_button, self.q_apply_button, self.q_save_button,
+                       self.q_start_button, self.q_stop_button, self.q_cluster_list,
+                       self.q_feature_list, self.q_length_spin, self.q_overlap_spin,
+                       self.q_method_combo, self.q_cluster_count_spin,
+                       self.q_normalize_toggle, self.q_equal_weight_toggle):
+            widget.setEnabled(not busy)
+        self.q_status_label.setText(message)
+
+    def _run_worker(self, worker):
+        self._thread = QThread(self)
+        self._worker = worker
+        worker.moveToThread(self._thread)
+
+        self._thread.started.connect(worker.run)
+        worker.finished.connect(self._thread.quit)
+        worker.failed.connect(self._thread.quit)
+        self._thread.finished.connect(self._thread.deleteLater)
+
+        return self._thread
+
+    # ---------------- analysis ----------------
+
+    def apply_settings(self):
+        self._start_analysis(None)
 
     def load_file(self):
-        if self.build_clustering_data is None:
-            self.q_load_status_label.setText("load-file pipeline not configured.")
-            return
-
         file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Load audio file", "", "Audio files (*.wav *.flac *.aiff *.aif *.ogg);;All files (*.*)"
-        )
+            self, "Load audio file", "", "Audio files (*.wav *.flac *.aiff *.aif *.ogg);;All files (*.*)")
         if not file_path:
             return
+        self._start_analysis(file_path)
 
-        # stop playback while the new file is being processed, since the
-        # cluster currently playing may be replaced or become invalid
+    def _start_analysis(self, file_path):
+        feature_names = self.get_checked_features()
+        if not feature_names:
+            self.q_status_label.setText("select at least one audio feature.")
+            return
+
+        length_ms = self.q_length_spin.value()
+        offset_ms = self.get_offset_ms()
+
         self.synthesis.stop()
+        self._set_busy(True, "analyzing {} feature(s), {} ms excerpts, {} ms hop...".format(
+            len(feature_names), length_ms, offset_ms))
 
-        self._set_busy(True, "loading and analyzing '{}'...".format(file_path))
+        worker = _AnalysisWorker(self.pipeline, self.model, file_path, length_ms, offset_ms, feature_names)
+        worker.finished.connect(self._on_analysis_finished)
+        worker.failed.connect(self._on_analysis_failed)
+        self._run_worker(worker).start()
 
-        self._load_thread = QThread(self)
-        self._load_worker = _LoadFileWorker(
-            self.build_clustering_data, file_path,
-            self.excerpt_length_ms, self.excerpt_offset_ms, self.analysis_seconds
-        )
-        self._load_worker.moveToThread(self._load_thread)
-
-        self._load_thread.started.connect(self._load_worker.run)
-        self._load_worker.finished.connect(self._on_load_finished)
-        self._load_worker.failed.connect(self._on_load_failed)
-        self._load_worker.finished.connect(self._load_thread.quit)
-        self._load_worker.failed.connect(self._load_thread.quit)
-        self._load_thread.finished.connect(self._load_thread.deleteLater)
-
-        self._load_thread.start()
-
-    def _on_load_finished(self, audio_excerpts, audio_features, sample_rate):
-        self.model.set_data(audio_excerpts, audio_features)
-        self.model.create_clusters()
-
-        # keep synthesis in sync with the newly loaded excerpts/sample rate
-        self.synthesis.model = self.model
-        self.synthesis.audio_sample_rate = sample_rate
+    def _on_analysis_finished(self, info):
+        self.synthesis.set_excerpt_params(info["length_ms"], info["offset_ms"], info["sample_rate"])
         self.synthesis.setClusterLabel(0)
 
-        self._populate_feature_combo()
         self.refresh_cluster_list()
+        self.update_excerpt_info()
+        self.update_feature_info(info["dimensions"])
 
-        self._set_busy(False, "loaded {} excerpts at {} Hz.".format(audio_excerpts.shape[0], sample_rate))
+        self._set_busy(False, "{} excerpts of {} ms (hop {} ms) at {} Hz.".format(
+            info["excerpt_count"], info["length_ms"], info["offset_ms"], info["sample_rate"]))
 
-    def _on_load_failed(self, error_message):
-        self._set_busy(False, "failed to load file: {}".format(error_message))
+    def _on_analysis_failed(self, error_message):
+        self._set_busy(False, "analysis failed: {}".format(error_message))
+        self.update_excerpt_info()
+
+    # ---------------- save clusters ----------------
+
+    def save_clusters(self):
+        if self.model.get_label_count() == 0:
+            self.q_status_label.setText("nothing to save: no clusters yet.")
+            return
+
+        folder = QtWidgets.QFileDialog.getExistingDirectory(
+            self, "Choose folder for cluster audio files", "results/audio")
+        if not folder:
+            return
+
+        self._set_busy(True, "saving {} clusters to '{}'...".format(self.model.get_label_count(), folder))
+
+        worker = _ExportWorker(self.model, self.synthesis, folder)
+        worker.progress.connect(self._on_save_progress)
+        worker.finished.connect(self._on_save_finished)
+        worker.failed.connect(self._on_save_failed)
+        self._run_worker(worker).start()
+
+    def _on_save_progress(self, done, total):
+        self.q_status_label.setText("saving cluster {} of {}...".format(done, total))
+
+    def _on_save_finished(self, info):
+        total_seconds = sum(f[2] for f in info["files"])
+        self._set_busy(False, "saved {} files ({:.1f} s of audio) to '{}'.".format(
+            len(info["files"]), total_seconds, info["folder"]))
+
+    def _on_save_failed(self, error_message):
+        self._set_busy(False, "saving failed: {}".format(error_message))

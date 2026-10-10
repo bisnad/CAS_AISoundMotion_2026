@@ -5,18 +5,16 @@ from pythonosc import dispatcher
 from pythonosc import osc_server
 
 """
-AudioControl: unchanged in overall shape from the original (threaded OSC
-server dispatching to synthesis/model methods, same pattern as
-motion_receiver.MotionReceiver), with two additions matching the new
-capabilities in audio_model.py / audio_synthesis.py:
+AudioControl: threaded OSC server dispatching to synthesis/model methods.
 
-- /synth/clustercount   -> Clustering.set_cluster_count
-- /synth/clustermethod  -> Clustering.set_cluster_method ("kmeans" or
-                            "minibatch_kmeans")
-
-These let an external OSC client (e.g. the mocap or audio-analysis tools,
-or a separate controller) drive re-clustering remotely, not just cluster
-selection and feature choice as in the original.
+OSC addresses:
+/synth/clusterlabel  <int>
+/synth/audiofeature  <name> [<name> ...]   one or several feature names; a single
+                     string may also hold a comma separated list,
+                     e.g. "mfcc,root mean square". Features that were not computed
+                     yet are computed on demand (the OSC call blocks meanwhile).
+/synth/clustercount  <int>
+/synth/clustermethod <"kmeans" | "minibatch_kmeans">
 """
 
 config = {"synthesis": None,
@@ -28,14 +26,12 @@ config = {"synthesis": None,
 class AudioControl():
 
     def __init__(self, config):
-
         self.synthesis = config["synthesis"]
         self.model = config["model"]
         self.ip = config["ip"]
         self.port = config["port"]
 
         self.dispatcher = dispatcher.Dispatcher()
-
         self.dispatcher.map("/synth/clusterlabel", self.setClusterLabel)
         self.dispatcher.map("/synth/audiofeature", self.selectAudioFeature)
         self.dispatcher.map("/synth/clustercount", self.setClusterCount)
@@ -47,35 +43,33 @@ class AudioControl():
         self.server.serve_forever()
 
     def start(self):
-
         self.th = threading.Thread(target=self.start_server, daemon=True)
         self.th.start()
 
     def stop(self):
+        self.server.shutdown()
         self.server.server_close()
 
     def setClusterLabel(self, address, *args):
-
-        label = args[0]
-
-        self.synthesis.setClusterLabel(label)
+        self.synthesis.setClusterLabel(int(args[0]))
 
     def selectAudioFeature(self, address, *args):
+        names = []
+        for arg in args:
+            names.extend([s.strip() for s in str(arg).split(",") if s.strip()])
 
-        featureName = args[0]
+        if not names:
+            return
 
-        self.synthesis.selectAudioFeature(featureName)
+        try:
+            self.synthesis.selectAudioFeatures(names)
+        except Exception as e:
+            print("[audio_control] could not select features {}: {}".format(names, e))
 
     def setClusterCount(self, address, *args):
-
-        cluster_count = int(args[0])
-
-        self.model.set_cluster_count(cluster_count)
+        self.model.set_cluster_count(int(args[0]))
         self.synthesis.setClusterLabel(self.synthesis.get_cluster_label())
 
     def setClusterMethod(self, address, *args):
-
-        method = args[0]
-
-        self.model.set_cluster_method(method)
+        self.model.set_cluster_method(args[0])
         self.synthesis.setClusterLabel(self.synthesis.get_cluster_label())

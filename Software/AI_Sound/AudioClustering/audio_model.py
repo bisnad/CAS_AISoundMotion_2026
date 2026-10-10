@@ -1,66 +1,56 @@
+import threading
 import numpy as np
 
 from sklearn.cluster import KMeans, MiniBatchKMeans
 from sklearn.preprocessing import StandardScaler
 
 """
-model architecture
+audio_model.py
 
-Revisions vs. the original audio_model.py:
+Revisions vs. the previous version:
 
-1. Feature normalization: raw feature magnitudes vary wildly in scale
-   (e.g. mel spectrogram energy vs. spectral centroid in Hz vs. a [0,1]
-   flatness value). K-means uses Euclidean distance, so without
-   normalization, whichever feature happens to have the largest raw
-   magnitude dominates the clustering regardless of how informative it
-   actually is. Every feature is now z-score normalized (StandardScaler)
-   before fitting, and normalize=False lets you opt back into the
-   old (unnormalized) behavior for comparison.
-
-2. Fixed the select_audio_feature()/create_clusters() inconsistency: the
-   original selected a feature and called create_clusters(), which only
-   ever reads self.cluster_method to decide which private _create_clusters_*
-   method to call, but never re-applied the cluster_count/random_state the
-   caller might have intended. create_clusters() now always re-clusters
-   using whatever parameters (cluster_count, random_state, method) are
-   currently stored on the instance, so switching features or calling
-   create_clusters() directly is consistent regardless of call path.
-
-3. Added MiniBatchKMeans as a second cluster_method option, useful when the
-   excerpt count is large (many minutes of audio at a small excerpt
-   offset can easily produce tens of thousands of excerpts) and full
-   KMeans becomes slow.
-
-4. Added get_cluster_sizes() / get_feature_names() / get_current_feature()
-   for the GUI to display cluster population counts and available
-   descriptors without reaching into private state.
-
-5. Added set_data(), letting a NEW audio file's excerpts/features be
-   swapped into an EXISTING Clustering instance (used by the "load audio
-   file" GUI workflow), instead of requiring the whole model/GUI/synthesis
-   stack to be torn down and rebuilt whenever a different file is loaded.
-   Clears the per-feature StandardScaler cache since scalers fit on the
-   old data are no longer valid for the new one.
+1. Several audio features can be combined. The model keeps a LIST of selected
+   feature names (set_selected_features). For clustering, each selected feature
+   (an N x D matrix) is
+     a) z-scored per column with StandardScaler (if normalize is on),
+     b) optionally divided by sqrt(D) ("equal feature weight"), so that
+        every feature contributes the same total variance. Without this a
+        feature with many dimensions (mel spectrogram, tempogram) would
+        drown out one with few (RMS, spectral centroid),
+     c) concatenated column-wise into a single matrix.
+2. Features can be missing from audio_features and be computed lazily through
+   an optional feature_provider (ClusteringPipeline.ensure_features), which is
+   what lets an OSC message select a feature that was not computed yet.
+3. cluster_count is clamped to the number of excerpts, and NaN/inf values in a
+   feature are replaced by 0 so one bad frame cannot make KMeans fail.
+4. select_audio_feature(name) is kept for backward compatibility (it selects
+   exactly that single feature).
 """
 
 config = {
     "audio_excerpts": None,
     "audio_features": None,
+    "selected_features": None,
     "cluster_method": "kmeans",
     "cluster_count": 20,
     "cluster_random_state": 170,
     "normalize": True,
+    "equal_feature_weight": True,
 }
 
 
 class Clustering():
-    def __init__(self, audio_excerpts, audio_features, normalize=True):
+    def __init__(self, audio_excerpts, audio_features, normalize=True,
+                 selected_features=None, equal_feature_weight=True, feature_provider=None):
 
         self.audio_excerpts = audio_excerpts
         self.audio_features = audio_features
         self.normalize = normalize
+        self.equal_feature_weight = equal_feature_weight
+        self.feature_provider = feature_provider
 
-        self.feature_name = self._default_feature_name()
+        self.feature_names = []
+        self.set_selected_features_silent(selected_features)
 
         self.cluster_method = "kmeans"
         self.cluster_labels = None
@@ -69,45 +59,76 @@ class Clustering():
         self.random_state = 170
 
         self._scaler_cache = {}
+        self._lock = threading.RLock()
 
-    def _default_feature_name(self):
-        # skip the "waveform" pseudo-feature (raw audio samples) when
-        # picking a default - clustering directly on raw waveform samples
-        # is rarely meaningful and was never intended to be selected here
-        feature_names = [name for name in self.audio_features.keys() if name != "waveform"]
-        return feature_names[0] if feature_names else list(self.audio_features.keys())[0]
-
-    def set_data(self, audio_excerpts, audio_features):
-        """
-        Swaps in a new set of audio excerpts/features (e.g. after loading a
-        different audio file), keeping the current cluster_method,
-        cluster_count, random_state and normalize settings. If the
-        currently selected feature name does not exist in the new feature
-        set, falls back to the new set's default feature. Clears cached
-        StandardScalers, since they were fit on the previous data and do
-        not apply to the new one. Does NOT re-cluster automatically - call
-        create_clusters() (or select_audio_feature()) afterwards.
-        """
-        self.audio_excerpts = audio_excerpts
-        self.audio_features = audio_features
-        self._scaler_cache = {}
-
-        if self.feature_name not in self.audio_features:
-            self.feature_name = self._default_feature_name()
-
-        self.cluster_labels = None
+    # ---------------- feature selection ----------------
 
     def get_feature_names(self):
+        """All features currently available (computed), without the raw waveform."""
         return [name for name in self.audio_features.keys() if name != "waveform"]
 
+    def get_selected_features(self):
+        return list(self.feature_names)
+
     def get_current_feature(self):
-        return self.feature_name
+        return self.feature_names[0] if self.feature_names else None
+
+    def _default_features(self):
+        names = self.get_feature_names()
+        return names[:1]
+
+    def set_selected_features_silent(self, names):
+        """Stores a valid selection without re-clustering."""
+        if names is None:
+            names = []
+        if isinstance(names, str):
+            names = [names]
+
+        names = [n for n in dict.fromkeys(names) if n != "waveform"]  # unique, ordered
+
+        missing = [n for n in names if n not in self.audio_features]
+        if missing and self.feature_provider is not None:
+            self.feature_provider(names)
+
+        names = [n for n in names if n in self.audio_features]
+        self.feature_names = names if names else self._default_features()
+
+    def set_selected_features(self, names):
+        with self._lock:
+            self.set_selected_features_silent(names)
+            self.create_clusters()
 
     def select_audio_feature(self, feature_name):
+        """Backward compatible: select exactly one feature."""
+        self.set_selected_features([feature_name])
 
-        if feature_name in self.audio_features:
-            self.feature_name = feature_name
-            self.create_clusters()
+    def set_equal_feature_weight(self, enabled):
+        self.equal_feature_weight = bool(enabled)
+        self.create_clusters()
+
+    def get_feature_dimensions(self):
+        """{feature name: dimensionality} for the selected features."""
+        return {n: int(np.prod(self.audio_features[n].shape[1:])) for n in self.feature_names}
+
+    # ---------------- data ----------------
+
+    def set_data(self, audio_excerpts, audio_features, selected_features=None):
+        """
+        Swaps in new excerpts/features (new file, new excerpt length/offset or
+        newly computed features). Keeps method/count/normalize settings. Does
+        NOT re-cluster: call create_clusters() afterwards.
+        """
+        with self._lock:
+            self.audio_excerpts = audio_excerpts
+            self.audio_features = audio_features
+            self._scaler_cache = {}
+            self.cluster_labels = None
+
+            if selected_features is None:
+                selected_features = self.feature_names
+            self.set_selected_features_silent(selected_features)
+
+    # ---------------- parameters ----------------
 
     def set_cluster_method(self, method):
         if method in ("kmeans", "minibatch_kmeans"):
@@ -126,83 +147,80 @@ class Clustering():
         self.normalize = bool(normalize)
         self.create_clusters()
 
+    # ---------------- clustering ----------------
+
+    def _get_single_feature_matrix(self, name):
+        matrix = np.asarray(self.audio_features[name], dtype=np.float64)
+        matrix = matrix.reshape(matrix.shape[0], -1)
+        matrix = np.nan_to_num(matrix, nan=0.0, posinf=0.0, neginf=0.0)
+
+        if self.normalize:
+            if name not in self._scaler_cache:
+                self._scaler_cache[name] = StandardScaler().fit(matrix)
+            matrix = self._scaler_cache[name].transform(matrix)
+
+        if self.equal_feature_weight:
+            matrix = matrix / np.sqrt(matrix.shape[1])
+
+        return matrix
+
     def _get_feature_matrix(self):
-        matrix = self.audio_features[self.feature_name]
-
-        if not self.normalize:
-            return matrix
-
-        if self.feature_name not in self._scaler_cache:
-            self._scaler_cache[self.feature_name] = StandardScaler()
-            return self._scaler_cache[self.feature_name].fit_transform(matrix)
-
-        return self._scaler_cache[self.feature_name].transform(matrix)
+        """Concatenation of all selected (normalized, weighted) features, shape N x sum(D)."""
+        blocks = [self._get_single_feature_matrix(name) for name in self.feature_names]
+        return np.concatenate(blocks, axis=1)
 
     def create_clusters(self):
-        """
-        (Re)runs clustering using whichever feature/method/cluster_count/
-        random_state are currently set on this instance. This is the single
-        entry point used by select_audio_feature(), set_cluster_method(),
-        set_cluster_count(), set_random_state() and set_normalize(), so all
-        of them behave consistently.
-        """
-        matrix = self._get_feature_matrix()
+        """(Re)clusters using the current features/method/count/random_state."""
+        with self._lock:
+            if not self.feature_names:
+                self.cluster_labels = None
+                return
 
-        if self.cluster_method == "minibatch_kmeans":
-            model = MiniBatchKMeans(
-                n_clusters=self.cluster_count, n_init="auto", random_state=self.random_state
-            )
-        else:
-            model = KMeans(
-                n_clusters=self.cluster_count, n_init="auto", random_state=self.random_state
-            )
+            matrix = self._get_feature_matrix()
+            n_clusters = max(1, min(self.cluster_count, matrix.shape[0]))
 
-        self.cluster_labels = model.fit_predict(matrix)
+            if self.cluster_method == "minibatch_kmeans":
+                km = MiniBatchKMeans(n_clusters=n_clusters, n_init="auto", random_state=self.random_state)
+            else:
+                km = KMeans(n_clusters=n_clusters, n_init="auto", random_state=self.random_state)
+
+            self.cluster_labels = km.fit_predict(matrix)
 
     def create_cluster_kmeans(self, cluster_count, random_state):
-        """
-        Kept for backward compatibility with the original API - sets
-        parameters and (re)clusters using k-means specifically.
-        """
         self.cluster_method = "kmeans"
         self.cluster_count = cluster_count
         self.random_state = random_state
         self.create_clusters()
 
     def get_label_count(self):
-        return len(set(self.cluster_labels)) if self.cluster_labels is not None else 0
+        labels = self.cluster_labels
+        return len(set(labels)) if labels is not None else 0
 
     def get_cluster_sizes(self):
-        """
-        Returns a dict {label: count} for every cluster label currently
-        present, useful for a GUI list showing how many excerpts fall into
-        each cluster.
-        """
-        if self.cluster_labels is None:
+        labels = self.cluster_labels
+        if labels is None:
             return {}
-        labels, counts = np.unique(self.cluster_labels, return_counts=True)
-        return {int(label): int(count) for label, count in zip(labels, counts)}
+        values, counts = np.unique(labels, return_counts=True)
+        return {int(v): int(c) for v, c in zip(values, counts)}
 
     def get_cluster_audio_excerpts(self, label):
-
-        if self.cluster_labels is None:
+        labels = self.cluster_labels
+        if labels is None:
             return None
-
-        mask = (self.cluster_labels == label)
-
-        if not np.any(mask):
+        mask = (labels == label)
+        if not np.any(mask) or mask.shape[0] != self.audio_excerpts.shape[0]:
             return None
-
         return self.audio_excerpts[mask]
 
 
 def createModel(config):
-
     clustering = Clustering(
         config["audio_excerpts"],
         config["audio_features"],
         normalize=config.get("normalize", True),
+        selected_features=config.get("selected_features"),
+        equal_feature_weight=config.get("equal_feature_weight", True),
+        feature_provider=config.get("feature_provider"),
     )
     clustering.create_cluster_kmeans(config["cluster_count"], config["cluster_random_state"])
-
     return clustering
