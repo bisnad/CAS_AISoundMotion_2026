@@ -209,7 +209,9 @@ class AudioReceiver():
 
     def get_play_head(self):
         with self._transport_lock:
-            return self._play_head / float(self.sample_rate)
+            head = self._play_head
+        queued = self._output_ring.filled if self._output_ring is not None else 0
+        return max(0, head - queued) / float(self.sample_rate)
 
     def set_region(self, start_seconds, end_seconds):
         with self._transport_lock:
@@ -298,27 +300,22 @@ class AudioReceiver():
         """
         chunk = self._output_ring.read(frames)
         outdata[:, 0] = chunk
+        self._push_samples(chunk) 
 
     def _filler_loop(self):
-        """
-        Runs on a plain Python thread. Keeps the output ring buffer topped
-        up by reading ahead from the file and also feeds the same samples
-        into the analysis rolling buffer. 
-        """
         fill_chunk = max(self.block_size, 1)
 
         while self._running.is_set():
-
             space = self._output_ring.available_space()
 
             if space >= fill_chunk:
                 mono, still_playing = self._next_file_block(fill_chunk)
-                self._push_samples(mono)
+                # REMOVED: self._push_samples(mono)
                 self._output_ring.write(mono)
 
                 if not still_playing:
-                    self._running.clear()
-                    break
+                    # REMOVED: self._running.clear()
+                    break          # filler is done; the ring drains on its own
             else:
                 time.sleep(0.005)
 

@@ -1,0 +1,84 @@
+Reading List
+
+>> Introduction Into Digital Audio:
+
+> Digital Audio Representation:
+
+Digital Audio Quantification Rate Sampling Rate
+https://www.izotope.com/en/learn/digital-audio-basics-sample-rate-and-bit-depth.html
+https://apxml.com/courses/applied-speech-recognition/chapter-1-foundations-digital-audio-speech/digital-audio-signals
+
+> Digital Audio Aliasing and Foldover
+https://www.realhd-audio.com/?p=2983
+
+> Time Domain and Frequency Domain
+https://apxml.com/courses/applied-speech-recognition/chapter-1-foundations-digital-audio-speech/time-frequency-domain-analysis
+
+> Digital Fourier Transform
+https://www.electronics-lab.com/article/the-fourier-analysis-part-2/
+https://www.alwayslearn.com/DFT%20and%20FFT%20Tutorial/DFTandFFT_BasicIdea.html
+
+> Mel Sectrogram
+https://medium.com/analytics-vidhya/understanding-the-mel-spectrogram-fca2afa2ce53
+https://apxml.com/courses/applied-speech-recognition/chapter-2-feature-extraction-for-speech/mel-frequency-cepstral-coefficients
+
+>> Audio Feature Analysis
+
+> Introduction to Audio Analysis and Processing
+https://blog.paperspace.com/introduction-to-audio-analysis-and-synthesis/
+https://ravinkumar.com/GenAiGuidebook/audio/audio_feature_extraction.html
+
+> Guide to Audio Feature Extraction using Librosa
+https://towardsdatascience.com/decoding-the-symphony-of-sound-audio-signal-processing-for-musical-engineering-c66f09a4d0f5
+https://musicinformationretrieval.com/spectral_features.html
+
+> Librosa Feature Analysis API
+https://librosa.org/doc/latest/feature.html
+
+>> Unsupervised Machine Learning
+
+> Introduction to Unsupervised Learning
+https://www.datacamp.com/blog/introduction-to-unsupervised-learning
+https://www.geeksforgeeks.org/machine-learning/unsupervised-learning/
+https://medium.com/@aiclub_sitpune/unsupervised-machine-learning-an-in-depth-overview-fad4b41172c6
+
+> Clustering Algorithms:
+https://www.datacamp.com/blog/clustering-in-machine-learning-5-essential-clustering-algorithms
+https://scikit-learn.org/stable/modules/clustering.html
+https://medium.com/ai-made-simple/introduction-to-clustering-2ffc22673b5a
+
+>> Autoencoder
+
+> Introduction into Autoencoders
+https://www.datacamp.com/tutorial/introduction-to-autoencoders
+https://www.geeksforgeeks.org/machine-learning/auto-encoders/
+https://medium.com/@piyushkashyap045/a-comprehensive-guide-to-autoencoders-8b18b58c2ea6
+
+> Latent Space
+https://www.ibm.com/think/topics/latent-space
+
+> Variational Autoencoder
+https://hackernoon.com/how-to-sample-from-latent-space-with-variational-autoencoder
+
+>> Hugging Face
+
+> Hugging Face Overview
+https://dilipkumar.medium.com/huggingface-introduction-39574837ea7b
+https://medium.com/@anthony.demeusy/introduction-to-hugging-face-a-starters-guide-to-using-online-models-d7d7923a9aa5
+
+> Pipelines
+https://huggingface.co/docs/transformers/en/main_classes/pipelines
+https://medium.com/@gdsc.srmramapuram/hugging-face-pipeline-a-simplified-overview-bbb37ba0ee1b
+
+>> Flow Matching
+
+> General Introduction into Flow Matching
+https://peterroelants.github.io/posts/flow_matching_intro/
+https://www.youtube.com/watch?v=7cMzfkWFWhI
+
+> Image Generation with Flow Matching
+https://www.vkethana.com/diffusion/
+
+> Audio Generation with Flow Matching
+https://github.com/multimodal-art-projection/YuE
+
