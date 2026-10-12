@@ -1,13 +1,16 @@
 """
-Live Audio VAE: train and listen at the same time  (v2: configurable loss registry)
------------------------------------------------------------------------------------
+Live Audio VAE: train and listen at the same time
+(v3: sophisticated ResNet VAE with causal decoder, configurable loss registry, frozen Vocos)
+-----------------------------------------------------------------------------------------
 - Trains the CNN VAE on Vocos 48 kHz log-mels in a background thread (step-based).
+- The encoder processes groups of audio_mel_count_vae mel frames independently; the causal decoder
+  decodes the whole latent timeline; a frozen Vocos turns the mels into audio.
 - A second thread runs an eval-mode copy of the model in real time, synced every N steps.
 - All training data selection, loss weights and loss configurations can be changed while training.
 
 Losses (each has its own weight; weight 0 = disabled and not computed):
-  vae_mel    Vocos-mel MSE on the VAE input/output mels (original)
-  mr_stft    Perceptual multi-resolution mel-STFT (auraloss, original)
+  vae_mel    Vocos-mel distance (L1/L2) on the VAE input/output mels
+  mr_stft    Perceptual multi-resolution mel-STFT (auraloss)
   mel_mr     Multi-resolution log-mel spectrogram loss
   lin_mr     Multi-resolution log linear-magnitude spectrogram loss
   mfcc       MFCC loss (optional deltas)
@@ -16,6 +19,15 @@ Losses (each has its own weight; weight 0 = disabled and not computed):
   centroid   Spectral centroid loss
   lw_centroid Loudness-weighted spectral centroid loss
   temporal   Temporal centroid loss (per segment)
+  bandwidth  Spectral bandwidth loss
+  contrast   Spectral contrast loss (octave bands, peak vs valley dB)
+  rolloff    Soft spectral rolloff loss
+  onset      Onset-strength envelope loss
+  rms        RMS loss (dB or linear)
+  zcr        Soft zero-crossing-rate loss
+  chroma     Chroma (STFT) loss
+  tonnetz    Tonnetz loss
+  poly       Spectral polynomial-fit coefficient loss
 Total = rec_loss_scale * sum_k(weight_k * loss_k) + beta * KL
 """
 
@@ -52,22 +64,38 @@ print(f'Using {device} device')
 
 audio_data_path = "data/audio/"
 audio_data_files = [
-    "Take1__double_Bind_HQ_audio_crop_48khz.wav",
-    "Take2_Hibr_II_HQ_audio_crop_48khz.wav",
+    "003_AcousticGuitar.wav",
 ]
 
 audio_sample_rate = 48000
-audio_window_length_vocos = 65280
-audio_window_length_vae = 1792
-inference_hop = audio_window_length_vae // 2
+
+# User-specified: mel frames per Vocos window (training excerpt) and per encoder group
+audio_mel_count_vocos = 256
+audio_mel_count_vae = 8
+mel_floor = -11.5                          # log-mels are clamped to this value (silence)
+
+# User-specified: mel frames per live-inference window (multiple of audio_mel_count_vae).
+# Longer windows give the causal decoder more context, but add latency.
+inference_mel_count = 32 # 256
+
+# Computed automatically (see Vocos section)
+audio_window_length_vocos = None
+audio_window_length_vae = None
+inference_window_length = None
+inference_hop = None
+
 inference_batch_windows = 4
 max_queued_blocks = 24
 default_audio_output_device = None
 
-latent_dim = 32
-vae_conv_channel_counts = [16, 32, 64, 128]
-vae_conv_kernel_size = (5, 3)
-vae_dense_layer_sizes = [512]
+# Model (same as the offline training script)
+latent_channels = 32
+conv_channel_counts = [32, 256]
+conv_strides = [(4, 2), (4, 2)]   # (freq, time)
+bottleneck_width = 256
+time_downsample = 4                        # product of the time strides
+
+grad_clip = 1.0
 
 save_path = "results/live_vae"
 os.makedirs(save_path, exist_ok=True)
@@ -81,12 +109,12 @@ initial_decoder_weights = None
 class TrainSettings:
     rec_loss_scale: float = 5.0        # global multiplier on the sum of all weighted reconstruction losses
     min_beta: float = 0.0
-    max_beta: float = 0.1
+    max_beta: float = 0.01
     beta_cyclic: bool = False
     beta_cycle_steps: int = 2000
     beta_min_const_steps: int = 400
     beta_max_const_steps: int = 400
-    learning_rate: float = 1e-3
+    learning_rate: float = 5e-4
     batch_size: int = 32
     sync_interval: int = 5
     paused: bool = False
@@ -112,7 +140,9 @@ inf_settings = InferenceSettings()
 FFT_CHOICES = ["256", "512", "1024", "2048", "4096"]
 
 LOSS_SPECS = [
-    dict(key="vae_mel", title="VAE mel MSE (Vocos mels)", weight=0.5, params=[]),
+    dict(key="vae_mel", title="VAE log-mel distance (Vocos mels)", weight=0.5, params=[
+        dict(key="dist", label="Distance", type="choice", default="L1", choices=["L1", "L2"]),
+    ]),
     dict(key="mr_stft", title="Perceptual multi-res mel-STFT (auraloss)", weight=0.5, params=[
         dict(key="n_bins", label="Mel bins", type="int", default=128, min=16, max=512),
         dict(key="perceptual", label="Perceptual weighting", type="bool", default=True),
@@ -123,7 +153,7 @@ LOSS_SPECS = [
         dict(key="n_mels", label="Mel bands", type="int", default=80, min=8, max=256),
         dict(key="dist", label="Distance", type="choice", default="L1", choices=["L1", "L2"]),
     ]),
-    dict(key="lin_mr", title="Multi-resolution log linear spectrogram", weight=0.0, params=[
+    dict(key="lin_mr", title="Multi-resolution log linear spectrogram", weight=0.5, params=[
         dict(key="n_res", label="Resolutions", type="int", default=3, min=1, max=5),
         dict(key="min_fft", label="Smallest FFT size", type="choice", default="512", choices=FFT_CHOICES),
         dict(key="n_bands", label="Pooled bands (0 = all bins)", type="int", default=0, min=0, max=2048),
@@ -144,7 +174,7 @@ LOSS_SPECS = [
         dict(key="db_div", label="dB normalization", type="float", default=20.0, min=1.0, max=200.0, step=1.0),
         dict(key="dist", label="Distance", type="choice", default="L1", choices=["L1", "L2"]),
     ]),
-    dict(key="flatness", title="Spectral flatness", weight=0.0, params=[
+    dict(key="flatness", title="Spectral flatness", weight=0.5, params=[
         dict(key="n_fft", label="FFT size", type="choice", default="2048", choices=FFT_CHOICES),
         dict(key="n_bands", label="Log-spaced bands", type="int", default=8, min=1, max=64),
         dict(key="db_div", label="dB normalization", type="float", default=10.0, min=1.0, max=200.0, step=1.0),
@@ -167,6 +197,60 @@ LOSS_SPECS = [
     ]),
 ]
 
+# --- Additional descriptor losses (differentiable re-implementations of librosa features) ---
+_EXP = dict(key="exponent", label="Loudness weighting exponent (0 = off)", type="float",
+            default=0.0, min=0.0, max=4.0, step=0.1)
+_DIST = dict(key="dist", label="Distance", type="choice", default="L1", choices=["L1", "L2"])
+_NFFT = lambda d="2048": dict(key="n_fft", label="FFT size", type="choice", default=d, choices=FFT_CHOICES)
+_FRAME = dict(key="frame", label="Frame (samples)", type="choice", default="1024",
+              choices=["256", "512", "1024", "2048"])
+
+LOSS_SPECS += [
+    dict(key="bandwidth", title="Spectral bandwidth", weight=0.0, params=[_NFFT(), _EXP, _DIST]),
+    dict(key="contrast", title="Spectral contrast", weight=0.0, params=[
+        _NFFT(),
+        dict(key="n_bands", label="Octave bands", type="int", default=6, min=1, max=6),
+        dict(key="fmin", label="Lowest band edge (Hz)", type="float", default=200.0, min=20.0, max=2000.0, step=10.0),
+        dict(key="quantile", label="Peak/valley quantile", type="float", default=0.02, min=0.005, max=0.5, step=0.005),
+        dict(key="db_div", label="dB normalization", type="float", default=30.0, min=1.0, max=200.0, step=1.0),
+        _EXP, _DIST]),
+    dict(key="rolloff", title="Spectral rolloff (soft)", weight=0.0, params=[
+        _NFFT(),
+        dict(key="percent", label="Energy fraction", type="float", default=0.85, min=0.05, max=0.99, step=0.05),
+        dict(key="sharpness", label="Softness (higher = sharper)", type="float", default=100.0, min=5.0, max=1000.0, step=10.0),
+        dict(key="log2", label="Compare in log2(Hz)", type="bool", default=True),
+        _EXP, _DIST]),
+    dict(key="onset", title="Onset strength", weight=0.0, params=[
+        _NFFT(),
+        dict(key="n_mels", label="Mel bands", type="int", default=128, min=8, max=256),
+        dict(key="lag", label="Frame lag", type="int", default=1, min=1, max=8),
+        dict(key="db_div", label="dB normalization", type="float", default=10.0, min=1.0, max=200.0, step=1.0),
+        _DIST]),
+    dict(key="rms", title="RMS", weight=0.0, params=[
+        _FRAME,
+        dict(key="in_db", label="Compare in dB", type="bool", default=True),
+        dict(key="db_div", label="dB normalization", type="float", default=20.0, min=1.0, max=200.0, step=1.0),
+        _DIST]),
+    dict(key="zcr", title="Zero-crossing rate (soft)", weight=0.0, params=[
+        _FRAME,
+        dict(key="sharpness", label="Sign softness (higher = sharper)", type="float", default=50.0, min=1.0, max=1000.0, step=5.0),
+        _DIST]),
+    dict(key="chroma", title="Chroma STFT", weight=0.0, params=[
+        _NFFT("4096"),
+        dict(key="sigma", label="Pitch-class width (semitones)", type="float", default=0.5, min=0.1, max=2.0, step=0.1),
+        dict(_EXP, default=1.0), _DIST]),
+    dict(key="tonnetz", title="Tonnetz", weight=0.0, params=[
+        _NFFT("4096"),
+        dict(key="sigma", label="Pitch-class width (semitones)", type="float", default=0.5, min=0.1, max=2.0, step=0.1),
+        dict(_EXP, default=1.0), _DIST]),
+    dict(key="poly", title="Poly features (spectral polynomial fit)", weight=0.0, params=[
+        _NFFT(),
+        dict(key="order", label="Polynomial order", type="int", default=1, min=0, max=4),
+        dict(key="fit", label="Fit on", type="choice", default="log magnitude",
+             choices=["log magnitude", "linear magnitude"]),
+        _EXP, _DIST]),
+]
+
 loss_cfg = {}
 for _s in LOSS_SPECS:
     loss_cfg[_s["key"]] = {"weight": _s["weight"], **{p["key"]: p["default"] for p in _s["params"]}}
@@ -174,7 +258,7 @@ for _s in LOSS_SPECS:
 WAVEFORM_LOSS_KEYS = [s["key"] for s in LOSS_SPECS if s["key"] != "vae_mel"]
 
 # -------------------------------------------------------------------------------------------------
-# Vocos
+# Vocos (frozen)
 # -------------------------------------------------------------------------------------------------
 
 print("Loading Vocos...")
@@ -183,101 +267,208 @@ vocos.eval()
 for p in vocos.parameters():
     p.requires_grad = False
 
+
+def get_mels(wave):
+    # wave (B, N) -> clamped log-mels (B, n_mels, T)
+    m = vocos.feature_extractor(wave)
+    if m.ndim == 4:
+        m = m[:, 0]
+    return m.clamp(min=mel_floor)
+
+
+def vocos_decode_diff(mels):
+    # Vocos.decode() is decorated with @torch.inference_mode(), which silently cuts the autograd graph.
+    # Same computation (backbone -> head), but differentiable w.r.t. the input mels.
+    return vocos.head(vocos.backbone(mels))
+
+
+def find_vocos_hop():
+    hop = getattr(getattr(vocos.feature_extractor, "mel_spec", None), "hop_length", None)
+    if hop is None:
+        n = 480000
+        with torch.no_grad():
+            t = vocos.feature_extractor(torch.rand(1, n, device=device)).shape[-1]
+        hop = int(round(n / (t - 1)))
+    return int(hop)
+
+
+audio_hop = find_vocos_hop()
+
+assert audio_mel_count_vocos % audio_mel_count_vae == 0, "audio_mel_count_vocos must be a multiple of audio_mel_count_vae"
+assert audio_mel_count_vae % time_downsample == 0, "audio_mel_count_vae must be divisible by time_downsample"
+assert inference_mel_count % audio_mel_count_vae == 0, "inference_mel_count must be a multiple of audio_mel_count_vae"
+
+# centered STFT frames: n_frames = n_samples // hop + 1
+audio_window_length_vocos = (audio_mel_count_vocos - 1) * audio_hop
+audio_window_length_vae = (audio_mel_count_vae - 1) * audio_hop
+inference_window_length = (inference_mel_count - 1) * audio_hop
+inference_hop = inference_window_length // 2
+
 with torch.no_grad():
-    feats = vocos.feature_extractor(torch.rand(1, audio_window_length_vocos, device=device))
-    mel_count_vocos = feats.shape[-1]
-    mel_filter_count = feats.shape[1]
-    feats = vocos.feature_extractor(torch.rand(1, audio_window_length_vae, device=device))
-    mel_count_vae = feats.shape[-1]
-    assert vocos.decode(feats).shape[-1] == audio_window_length_vae
-assert mel_count_vocos % mel_count_vae == 0
-mels_per_group = mel_count_vocos // mel_count_vae
-print(f"mels vocos {mel_count_vocos}, mels vae {mel_count_vae}, filters {mel_filter_count}")
+    for n, cnt in ((audio_window_length_vocos, audio_mel_count_vocos),
+                   (audio_window_length_vae, audio_mel_count_vae),
+                   (inference_window_length, inference_mel_count)):
+        m = vocos.feature_extractor(torch.rand(1, n, device=device))
+        assert m.shape[-1] == cnt, f"{n} samples give {m.shape[-1]} mel frames, expected {cnt}"
+        assert vocos.decode(m).shape[-1] == n, "Vocos decode length mismatch"
+    mel_filter_count = m.shape[1]
+
+audio_vae_mels_per_vocos_mels = audio_mel_count_vocos // audio_mel_count_vae
+latent_steps_per_group = audio_mel_count_vae // time_downsample
+print(f"hop {audio_hop} | mel bins {mel_filter_count} | vocos window {audio_window_length_vocos} samples | "
+      f"vae window {audio_window_length_vae} | inference window {inference_window_length} "
+      f"({inference_window_length / audio_sample_rate * 1000:.0f} ms)")
+
+
+# -------------------------------------------------------------------------------------------------
+# Grouping helpers (the encoder sees groups of audio_mel_count_vae mel frames, independently)
+# -------------------------------------------------------------------------------------------------
+
+def group_mels(mels):
+    # (B, n_mels, T) -> (B*G, 1, n_mels, audio_mel_count_vae)
+    B, n_mels, T = mels.shape
+    G = T // audio_mel_count_vae
+    return mels.reshape(B, n_mels, G, audio_mel_count_vae).permute(0, 2, 1, 3).reshape(B * G, 1, n_mels, audio_mel_count_vae)
+
+
+def ungroup_latents(z, B):
+    # (B*G, Cz, latent_steps_per_group) -> (B, Cz, Tz)
+    BG, Cz, Tzg = z.shape
+    G = BG // B
+    return z.reshape(B, G, Cz, Tzg).permute(0, 2, 1, 3).reshape(B, Cz, G * Tzg)
+
 
 # -------------------------------------------------------------------------------------------------
 # Models
 # -------------------------------------------------------------------------------------------------
 
-class Encoder(nn.Module):
-    def __init__(self, latent_dim, mel_count, mel_filter_count, conv_channel_counts, conv_kernel_size, dense_layer_sizes):
+def gn(ch):
+    return nn.GroupNorm(8, ch)
+
+
+class ResBlock2d(nn.Module):
+    def __init__(self, ch):
         super().__init__()
-        self.latent_dim = latent_dim
-        stride = ((conv_kernel_size[0] - 1) // 2, (conv_kernel_size[1] - 1) // 2)
-        padding = stride
-        self.conv_layers = nn.ModuleList()
-        self.conv_layers.append(nn.Conv2d(1, conv_channel_counts[0], conv_kernel_size, stride=stride, padding=padding))
-        self.conv_layers.append(nn.LeakyReLU(0.2))
-        self.conv_layers.append(nn.BatchNorm2d(conv_channel_counts[0]))
-        for i in range(1, len(conv_channel_counts)):
-            self.conv_layers.append(nn.Conv2d(conv_channel_counts[i-1], conv_channel_counts[i], conv_kernel_size, stride=stride, padding=padding))
-            self.conv_layers.append(nn.LeakyReLU(0.2))
-            self.conv_layers.append(nn.BatchNorm2d(conv_channel_counts[i]))
-        self.flatten = nn.Flatten()
-        self.dense_layers = nn.ModuleList()
-        lx = int(mel_filter_count // np.power(stride[0], len(conv_channel_counts)))
-        ly = int(mel_count // np.power(stride[1], len(conv_channel_counts)))
-        self.dense_layers.append(nn.Linear(conv_channel_counts[-1] * lx * ly, dense_layer_sizes[0]))
-        self.dense_layers.append(nn.ReLU())
-        for i in range(1, len(dense_layer_sizes)):
-            self.dense_layers.append(nn.Linear(dense_layer_sizes[i-1], dense_layer_sizes[i]))
-            self.dense_layers.append(nn.ReLU())
-        self.fc_mu = nn.Linear(dense_layer_sizes[-1], latent_dim)
-        self.fc_std = nn.Linear(dense_layer_sizes[-1], latent_dim)
-
+        self.net = nn.Sequential(gn(ch), nn.SiLU(), nn.Conv2d(ch, ch, 3, padding=1),
+                                 gn(ch), nn.SiLU(), nn.Conv2d(ch, ch, 3, padding=1))
     def forward(self, x):
-        for layer in self.conv_layers:
-            x = layer(x)
-        x = self.flatten(x)
-        for layer in self.dense_layers:
-            x = layer(x)
-        return self.fc_mu(x), self.fc_std(x)
+        return x + self.net(x)
 
+
+class Encoder(nn.Module):
+    def __init__(self, latent_channels, mel_filter_count, channels, strides, width):
+        super().__init__()
+        self.stem = nn.Conv2d(1, channels[0], 3, padding=1)
+        layers, c_in = [], channels[0]
+        for c_out, s in zip(channels, strides):
+            layers += [ResBlock2d(c_in), gn(c_in), nn.SiLU(), nn.Conv2d(c_in, c_out, 3, stride=s, padding=1)]
+            c_in = c_out
+        self.down = nn.Sequential(*layers)
+        f_red = int(np.prod([s[0] for s in strides]))
+        self.flat_ch = channels[-1] * (mel_filter_count // f_red)
+        self.head = nn.Sequential(nn.Conv1d(self.flat_ch, width, 3, padding=1), nn.GroupNorm(8, width), nn.SiLU(),
+                                  nn.Conv1d(width, width, 3, padding=1), nn.GroupNorm(8, width), nn.SiLU(),
+                                  nn.Conv1d(width, 2 * latent_channels, 3, padding=1))
+    def forward(self, x):                      # x: (B,1,F,T) -> mu, std (B,Cz,T')
+        h = self.down(self.stem(x)).flatten(1, 2)
+        mu, raw = self.head(h).chunk(2, dim=1)
+        return mu, F.softplus(raw) + 1e-4      # std is already positive
     @staticmethod
     def reparameterize(mu, std):
         return mu + std * torch.randn_like(std)
 
 
-class Decoder(nn.Module):
-    def __init__(self, latent_dim, mel_count, mel_filter_count, conv_channel_counts, conv_kernel_size, dense_layer_sizes):
+class FrameGroupNorm(nn.Module):
+    """GroupNorm computed independently for every time step: required for causal streaming."""
+    def __init__(self, groups, ch):
         super().__init__()
-        stride = ((conv_kernel_size[0] - 1) // 2, (conv_kernel_size[1] - 1) // 2)
-        self.dense_layers = nn.ModuleList()
-        self.dense_layers.append(nn.Linear(latent_dim, dense_layer_sizes[0]))
-        self.dense_layers.append(nn.ReLU())
-        for i in range(1, len(dense_layer_sizes)):
-            self.dense_layers.append(nn.Linear(dense_layer_sizes[i-1], dense_layer_sizes[i]))
-            self.dense_layers.append(nn.ReLU())
-        lx = int(mel_filter_count // np.power(stride[0], len(conv_channel_counts)))
-        ly = int(mel_count // np.power(stride[1], len(conv_channel_counts)))
-        self.dense_layers.append(nn.Linear(dense_layer_sizes[-1], conv_channel_counts[0] * lx * ly))
-        self.dense_layers.append(nn.ReLU())
-        self.unflatten = nn.Unflatten(dim=1, unflattened_size=[conv_channel_counts[0], lx, ly])
-        self.conv_layers = nn.ModuleList()
-        same_padding = (conv_kernel_size[0] // 2, conv_kernel_size[1] // 2)
-        for i in range(1, len(conv_channel_counts)):
-            self.conv_layers.append(nn.BatchNorm2d(conv_channel_counts[i-1]))
-            self.conv_layers.append(nn.Upsample(scale_factor=stride, mode="nearest"))
-            use_bias = i != 1
-            self.conv_layers.append(nn.Conv2d(conv_channel_counts[i-1], conv_channel_counts[i], conv_kernel_size, stride=1, padding=same_padding, bias=use_bias))
-            self.conv_layers.append(nn.LeakyReLU(0.2))
-        self.conv_layers.append(nn.BatchNorm2d(conv_channel_counts[-1]))
-        self.conv_layers.append(nn.Upsample(scale_factor=stride, mode="nearest"))
-        self.conv_layers.append(nn.Conv2d(conv_channel_counts[-1], 1, conv_kernel_size, stride=1, padding=same_padding))
-
+        self.gn = nn.GroupNorm(groups, ch)
     def forward(self, x):
-        for layer in self.dense_layers:
-            x = layer(x)
-        x = self.unflatten(x)
-        for layer in self.conv_layers:
-            x = layer(x)
-        return x
+        if x.ndim == 3:                                        # (B,C,T)
+            B, C, T = x.shape
+            y = self.gn(x.permute(0, 2, 1).reshape(B * T, C, 1))
+            return y.reshape(B, T, C).permute(0, 2, 1)
+        B, C, Fq, T = x.shape                                  # (B,C,F,T)
+        y = self.gn(x.permute(0, 3, 1, 2).reshape(B * T, C, Fq))
+        return y.reshape(B, T, C, Fq).permute(0, 2, 3, 1)
+
+
+def fgn(ch):
+    return FrameGroupNorm(8, ch)
+
+
+class CausalConv1d(nn.Module):
+    def __init__(self, c_in, c_out, k=3):
+        super().__init__()
+        self.k = k
+        self.conv = nn.Conv1d(c_in, c_out, k)
+        self.streaming = False
+        self.cache = None
+    def forward(self, x):
+        if self.streaming:
+            if self.cache is None or self.cache.shape[0] != x.shape[0]:
+                self.cache = x.new_zeros(x.shape[0], x.shape[1], self.k - 1)
+            x = torch.cat([self.cache, x], dim=-1)
+            self.cache = x[..., -(self.k - 1):].detach().clone()
+        else:
+            x = F.pad(x, (self.k - 1, 0))
+        return self.conv(x)
+
+
+class CausalConv2d(nn.Module):
+    def __init__(self, c_in, c_out, k_f=3, k_t=3):
+        super().__init__()
+        self.k_f, self.k_t = k_f, k_t
+        self.conv = nn.Conv2d(c_in, c_out, (k_f, k_t))
+        self.streaming = False
+        self.cache = None
+    def forward(self, x):
+        if self.streaming:
+            if self.cache is None or self.cache.shape[0] != x.shape[0]:
+                self.cache = x.new_zeros(x.shape[0], x.shape[1], x.shape[2], self.k_t - 1)
+            x = torch.cat([self.cache, x], dim=-1)
+            self.cache = x[..., -(self.k_t - 1):].detach().clone()
+        else:
+            x = F.pad(x, (self.k_t - 1, 0))
+        x = F.pad(x, (0, 0, self.k_f // 2, self.k_f // 2))
+        return self.conv(x)
+
+
+class CausalResBlock2d(nn.Module):
+    def __init__(self, ch):
+        super().__init__()
+        self.net = nn.Sequential(fgn(ch), nn.SiLU(), CausalConv2d(ch, ch),
+                                 fgn(ch), nn.SiLU(), CausalConv2d(ch, ch))
+    def forward(self, x):
+        return x + self.net(x)
+
+
+class Decoder(nn.Module):
+    def __init__(self, latent_channels, mel_filter_count, channels, strides, width):
+        super().__init__()
+        rc, rs = channels[::-1], strides[::-1]
+        f_red = int(np.prod([s[0] for s in strides]))
+        self.c0, self.f0 = rc[0], mel_filter_count // f_red
+        self.inp = nn.Sequential(CausalConv1d(latent_channels, width), fgn(width), nn.SiLU(),
+                                 CausalConv1d(width, width), fgn(width), nn.SiLU(),
+                                 CausalConv1d(width, self.c0 * self.f0))
+        layers = []
+        for i, s in enumerate(rs):
+            c_in = rc[i]
+            c_out = rc[i + 1] if i + 1 < len(rc) else rc[-1]
+            layers += [CausalResBlock2d(c_in), fgn(c_in), nn.SiLU(), nn.Upsample(scale_factor=s, mode="nearest"),
+                       CausalConv2d(c_in, c_out)]
+        self.up = nn.Sequential(*layers)
+        self.out = nn.Sequential(fgn(rc[-1]), nn.SiLU(), CausalConv2d(rc[-1], 1))
+    def forward(self, z):                      # z: (B,Cz,T') -> (B,1,F,T)
+        h = self.inp(z)
+        h = h.reshape(h.shape[0], self.c0, self.f0, h.shape[-1])
+        return self.out(self.up(h))
 
 
 def build_models():
-    enc = Encoder(latent_dim, mel_count_vae, mel_filter_count, vae_conv_channel_counts,
-                  vae_conv_kernel_size, vae_dense_layer_sizes).to(device)
-    dec = Decoder(latent_dim, mel_count_vae, mel_filter_count, list(reversed(vae_conv_channel_counts)),
-                  vae_conv_kernel_size, list(reversed(vae_dense_layer_sizes))).to(device)
+    enc = Encoder(latent_channels, mel_filter_count, conv_channel_counts, conv_strides, bottleneck_width).to(device)
+    dec = Decoder(latent_channels, mel_filter_count, conv_channel_counts, conv_strides, bottleneck_width).to(device)
     return enc, dec
 
 
@@ -344,9 +535,10 @@ def dist(a, b, kind):
 
 
 class LossContext:
-    """Holds target / reconstruction waveforms (B, N) and caches STFT magnitudes per step."""
-    def __init__(self, y, yhat, vae_mel_loss):
-        self.y, self.yhat, self.vae_mel_loss = y, yhat, vae_mel_loss
+    """Holds target / reconstruction waveforms (B, N) and mels (B, F, T); caches STFT magnitudes per step."""
+    def __init__(self, y, yhat, y_mels, yhat_mels):
+        self.y, self.yhat = y, yhat
+        self.y_mels, self.yhat_mels = y_mels, yhat_mels
         self._mags = {}
 
     def mags(self, n_fft):
@@ -361,7 +553,7 @@ class LossContext:
 
 
 def loss_vae_mel(ctx, c):
-    return ctx.vae_mel_loss
+    return dist(ctx.yhat_mels, ctx.y_mels, c["dist"])
 
 
 def loss_mr_stft(ctx, c):
@@ -470,9 +662,190 @@ def loss_temporal(ctx, c):
     return dist(tc(ctx.yhat), tc(ctx.y), c["dist"])
 
 
+# --- Additional descriptor losses ---
+
+def _ferr(a, b, kind):
+    d = a - b
+    return d.abs() if kind == "L1" else d * d
+
+
+def _reduce_frames(e, my, exponent):
+    # e: (B, ..., T) elementwise error -> scalar, optionally weighted by target frame amplitude
+    e = e.reshape(e.shape[0], -1, e.shape[-1]).mean(1)                 # (B, T)
+    if exponent <= 0:
+        return e.mean()
+    w = (torch.sqrt(my.pow(2).sum(1)) + 1e-6).pow(exponent).detach()
+    w = w / w.sum(1, keepdim=True)
+    return (w * e).sum(1).mean()
+
+
+def _frames(x, frame):
+    xp = F.pad(x.unsqueeze(1), (frame // 2, frame // 2), mode="reflect").squeeze(1)
+    return xp.unfold(-1, frame, max(1, frame // 4))                    # (B, T, frame)
+
+
+def loss_bandwidth(ctx, c):
+    n_fft = int(c["n_fft"])
+    my, mh = ctx.mags(n_fft)
+    f = freq_axis(n_fft)[None, :, None]
+
+    def bw(m):
+        p = m / (m.sum(1, keepdim=True) + 1e-6)
+        cen = (p * f).sum(1, keepdim=True)
+        return torch.sqrt((p * (f - cen) ** 2).sum(1) + 1.0) / 1000.0   # kHz
+    return _reduce_frames(_ferr(bw(mh), bw(my), c["dist"]), my, c["exponent"])
+
+
+def _contrast_bands(n_fft, n_bands, fmin):
+    def make():
+        f = freq_axis(n_fft).cpu().numpy()
+        nb = max(1, min(n_bands, int(np.floor(np.log2((audio_sample_rate / 2) / fmin)))))
+        edges = np.concatenate([[0.0], fmin * 2.0 ** np.arange(nb + 1)])
+        idx = np.searchsorted(f, edges)
+        idx[-1] = len(f)                                               # last band reaches Nyquist
+        return [(int(a), int(b)) for a, b in zip(idx[:-1], idx[1:]) if b > a]
+    return cached(("cbands", n_fft, n_bands, float(fmin)), make)
+
+
+def loss_contrast(ctx, c):
+    n_fft = int(c["n_fft"])
+    my, mh = ctx.mags(n_fft)
+    bands = _contrast_bands(n_fft, int(c["n_bands"]), float(c["fmin"]))
+    q = float(c["quantile"])
+
+    def contrast(m):
+        out = []
+        for a, b in bands:
+            s, _ = m[:, a:b, :].sort(dim=1)                            # gradients flow to selected bins
+            k = max(1, int(round(q * (b - a))))
+            out.append(10 * torch.log10(s[:, -k:].mean(1) + 1e-6) - 10 * torch.log10(s[:, :k].mean(1) + 1e-6))
+        return torch.stack(out, 1) / c["db_div"]                       # (B, bands, T)
+    return _reduce_frames(_ferr(contrast(mh), contrast(my), c["dist"]), my, c["exponent"])
+
+
+def loss_rolloff(ctx, c):
+    n_fft = int(c["n_fft"])
+    my, mh = ctx.mags(n_fft)
+    f = freq_axis(n_fft)[None, :, None]
+    k, pct = float(c["sharpness"]), float(c["percent"])
+
+    def ro(m):
+        cum = m.cumsum(1) / (m.sum(1, keepdim=True) + 1e-6)
+        ge = torch.sigmoid(k * (cum - pct))                            # soft "reached pct"
+        first = ge - F.pad(ge, (0, 0, 1, 0))[:, :-1]                   # soft first-crossing distribution
+        hz = (first * f).sum(1) / (first.sum(1) + 1e-6)
+        return torch.log2(hz + 1.0) if c["log2"] else hz / 1000.0
+    return _reduce_frames(_ferr(ro(mh), ro(my), c["dist"]), my, c["exponent"])
+
+
+def loss_onset(ctx, c):
+    n_fft, lag = int(c["n_fft"]), int(c["lag"])
+    my, mh = ctx.mags(n_fft)
+    fb = mel_fb(n_fft, int(c["n_mels"]))
+
+    def onset(m):
+        db = 10 * torch.log10(torch.einsum('bft,fm->bmt', m.pow(2), fb) + 1e-8)
+        return F.relu(db[..., lag:] - db[..., :-lag]).mean(1) / c["db_div"]
+    return dist(onset(mh), onset(my), c["dist"])
+
+
+def loss_rms(ctx, c):
+    frame = int(c["frame"])
+
+    def rms(x):
+        ms = _frames(x, frame).pow(2).mean(-1)
+        return 10 * torch.log10(ms + 1e-8) / c["db_div"] if c["in_db"] else torch.sqrt(ms + 1e-8)
+    return dist(rms(ctx.yhat), rms(ctx.y), c["dist"])
+
+
+def loss_zcr(ctx, c):
+    frame, k = int(c["frame"]), float(c["sharpness"])
+
+    def zcr(x):
+        s = torch.tanh(k * _frames(x, frame))
+        return (0.5 * (1 - s[..., 1:] * s[..., :-1])).mean(-1)
+    return dist(zcr(ctx.yhat), zcr(ctx.y), c["dist"])
+
+
+def chroma_fb(n_fft, sigma):
+    def make():
+        fr = freq_axis(n_fft)
+        f = fr.clone(); f[0] = 1.0
+        pc = (69 + 12 * torch.log2(f / 440.0)) % 12
+        cls = torch.arange(12, device=fr.device, dtype=fr.dtype)[:, None]
+        d = (pc[None] - cls).abs()
+        d = torch.minimum(d, 12 - d)
+        fb = torch.exp(-0.5 * (d / sigma) ** 2)
+        fb[:, (fr < 55.0) | (fr > 5000.0)] = 0.0
+        return fb
+    return cached(("chroma", n_fft, float(sigma)), make)
+
+
+def _chroma_raw(m, n_fft, sigma):
+    return torch.einsum('cf,bft->bct', chroma_fb(n_fft, float(sigma)), m.pow(2))
+
+
+def loss_chroma(ctx, c):
+    n_fft = int(c["n_fft"])
+    my, mh = ctx.mags(n_fft)
+
+    def ch(m):
+        x = _chroma_raw(m, n_fft, c["sigma"])
+        return x / torch.sqrt((x ** 2).sum(1, keepdim=True) + 1e-12)
+    return _reduce_frames(_ferr(ch(mh), ch(my), c["dist"]), my, c["exponent"])
+
+
+def tonnetz_phi():
+    def make():
+        scale = torch.tensor([7 / 6, 7 / 6, 3 / 2, 3 / 2, 2 / 3, 2 / 3], device=device)
+        V = scale[:, None] * torch.arange(12.0, device=device)[None]
+        V[::2] -= 0.5
+        R = torch.tensor([1, 1, 1, 1, 0.5, 0.5], device=device)
+        return R[:, None] * torch.cos(np.pi * V)                       # (6, 12), same as librosa
+    return cached(("tonnetz",), make)
+
+
+def loss_tonnetz(ctx, c):
+    n_fft = int(c["n_fft"])
+    my, mh = ctx.mags(n_fft)
+    phi = tonnetz_phi()
+
+    def tn(m):
+        x = _chroma_raw(m, n_fft, c["sigma"])
+        x = x / (x.abs().sum(1, keepdim=True) + 1e-6)                  # L1 norm as in librosa
+        return torch.einsum('dc,bct->bdt', phi, x)                     # (B, 6, T)
+    return _reduce_frames(_ferr(tn(mh), tn(my), c["dist"]), my, c["exponent"])
+
+
+def poly_pinv(n_fft, order):
+    def make():
+        x = torch.linspace(-1, 1, n_fft // 2 + 1)
+        P = [torch.ones_like(x), x]
+        for n in range(1, order):
+            P.append(((2 * n + 1) * x * P[n] - n * P[n - 1]) / (n + 1))   # Legendre basis (well conditioned)
+        V = torch.stack(P[:order + 1], 1)
+        return torch.linalg.pinv(V).to(device)                           # (order+1, F), solved on CPU
+    return cached(("poly", n_fft, order), make)
+
+
+def loss_poly(ctx, c):
+    n_fft = int(c["n_fft"])
+    my, mh = ctx.mags(n_fft)
+    pinv = poly_pinv(n_fft, int(c["order"]))
+    use_log = c["fit"].startswith("log")
+
+    def coef(m):
+        return torch.einsum('of,bft->bot', pinv, torch.log(m + 1e-5) if use_log else m)
+    return _reduce_frames(_ferr(coef(mh), coef(my), c["dist"]), my, c["exponent"])
+
+
 LOSS_FUNCS = dict(vae_mel=loss_vae_mel, mr_stft=loss_mr_stft, mel_mr=loss_mel_mr, lin_mr=loss_lin_mr,
                   mfcc=loss_mfcc, loudness=loss_loudness, flatness=loss_flatness, centroid=loss_centroid,
                   lw_centroid=loss_lw_centroid, temporal=loss_temporal)
+
+LOSS_FUNCS.update(bandwidth=loss_bandwidth, contrast=loss_contrast, rolloff=loss_rolloff,
+                  onset=loss_onset, rms=loss_rms, zcr=loss_zcr, chroma=loss_chroma,
+                  tonnetz=loss_tonnetz, poly=loss_poly)
 
 # -------------------------------------------------------------------------------------------------
 # Audio data store (live-editable)
@@ -541,8 +914,9 @@ class Trainer:
         self.status_msg = ""
 
     def _make_optimizer(self):
-        self.opt = torch.optim.Adam(list(self.enc.parameters()) + list(self.dec.parameters()),
-                                    lr=train_settings.learning_rate)
+        self.params = list(self.enc.parameters()) + list(self.dec.parameters())
+        self.opt = torch.optim.AdamW(self.params, lr=train_settings.learning_rate,
+                                     betas=(0.8, 0.99), weight_decay=1e-4)
 
     @torch.no_grad()
     def sync_inference_models(self):
@@ -565,29 +939,21 @@ class Trainer:
     def train_step(self, y_wave, beta):
         s = train_settings
         B = y_wave.shape[0]
-        F_, G, V = mel_filter_count, mels_per_group, mel_count_vae
+        cfgs = {k: dict(v) for k, v in loss_cfg.items()}               # snapshot for this step
 
-        y_mels = vocos.feature_extractor(y_wave.squeeze(1))
-        y_grp = y_mels.reshape(B, F_, G, V).permute(0, 2, 1, 3).reshape(-1, 1, F_, V)
-
-        mu, std_raw = self.enc(y_grp)
-        std = F.softplus(std_raw) + 1e-6
+        y = y_wave.squeeze(1)
+        y_mels = get_mels(y)                                           # (B, F, audio_mel_count_vocos)
+        mu, std = self.enc(group_mels(y_mels))                         # encoder works on groups of mel frames
         z = Encoder.reparameterize(mu, std)
         kld = kl_loss(mu, std)
 
-        yhat_grp = self.dec(z)
-        vae_mel = F.mse_loss(yhat_grp, y_grp)
+        yhat_mels = self.dec(ungroup_latents(z, B))[:, 0]              # causal decoder over the whole timeline
 
-        cfgs = {k: dict(v) for k, v in loss_cfg.items()}               # snapshot for this step
         need_wave = any(cfgs[k]["weight"] != 0 for k in WAVEFORM_LOSS_KEYS)
-
-        ctx = None
-        if need_wave:
-            yhat_mels = yhat_grp.reshape(B, G, F_, V).permute(0, 2, 1, 3).reshape(B, F_, mel_count_vocos)
-            yhat_wave = vocos.decode(yhat_mels)
-            ctx = LossContext(y_wave.squeeze(1), yhat_wave, vae_mel)
-        else:
-            ctx = LossContext(None, None, vae_mel)
+        yhat_wave = vocos_decode_diff(yhat_mels) if need_wave else None   # frozen Vocos, differentiable
+        if need_wave and not yhat_wave.requires_grad:
+            raise RuntimeError("Vocos output has no gradient: waveform losses cannot train the VAE")
+        ctx = LossContext(y if need_wave else None, yhat_wave, y_mels, yhat_mels)
 
         rec = 0.0
         values = {}
@@ -609,6 +975,7 @@ class Trainer:
             total = beta * kld
         self.opt.zero_grad()
         total.backward()
+        torch.nn.utils.clip_grad_norm_(self.params, grad_clip)
         self.opt.step()
         return total.item(), kld.item(), {k: v.item() for k, v in values.items()}
 
@@ -701,11 +1068,11 @@ class InferenceEngine:
         self.leftover = np.zeros(0, dtype=np.float32)
         self.stream = None
         self.device_id = default_audio_output_device
-        self.hann = torch.hann_window(audio_window_length_vae, periodic=True).to(device)
+        self.hann = torch.hann_window(inference_window_length, periodic=True).to(device)
         self.tail = np.zeros(inference_hop, dtype=np.float32)
 
     def _next_window(self):
-        W = audio_window_length_vae
+        W = inference_window_length
         s = inf_settings
         idx = min(max(0, s.file_index), len(store.waves) - 1)
         wave = store.waves[idx]
@@ -729,17 +1096,15 @@ class InferenceEngine:
                 continue
             try:
                 s = inf_settings
-                x = torch.stack([self._next_window() for _ in range(K)])
+                x = torch.stack([self._next_window() for _ in range(K)])          # (K, W)
                 with self.trainer.model_lock:
-                    mels = vocos.feature_extractor(x)
-                    mu, std_raw = self.trainer.inf_enc(mels.unsqueeze(1))
-                    if s.use_mean:
-                        z = mu
-                    else:
-                        z = Encoder.reparameterize(mu, F.softplus(std_raw) + 1e-6)
+                    mels = get_mels(x)                                            # (K, F, inference_mel_count)
+                    mu, std = self.trainer.inf_enc(group_mels(mels))
+                    z = mu if s.use_mean else Encoder.reparameterize(mu, std)
+                    z = ungroup_latents(z, K)                                     # (K, Cz, Tz)
                     if s.latent_noise > 0:
                         z = z + torch.randn_like(z) * s.latent_noise
-                    gen = self.trainer.inf_dec(z).squeeze(1)
+                    gen = self.trainer.inf_dec(z)[:, 0]                           # (K, F, inference_mel_count)
                     wav = vocos.decode(gen)
                 wav = (wav * self.hann * s.gain).cpu().numpy()
                 for w in wav:
@@ -1129,4 +1494,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main()  

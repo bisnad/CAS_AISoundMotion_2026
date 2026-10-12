@@ -342,17 +342,33 @@ class Encoder(nn.Module):
         self.fc_std = nn.Linear(self.dense_layer_sizes[-1], self.latent_dim)
 
     def forward(self, x):
+
+        #print("x0 ", x.shape)
         
         for lI, layer in enumerate(self.conv_layers):
+
+            #print("conv layer ", lI, " x-in ", x.shape)
+
             x = layer(x)
+
+            #print("conv layer ", lI, " x-out ", x.shape)
     
         x = self.flatten(x)
 
+        #print("x-flat ", x.shape)
+
         for lI, layer in enumerate(self.dense_layers):
+
+            #print("dense layer ", lI, " x-in ", x.shape)
+
             x = layer(x)
+
+            #print("dense layer ", lI, " x-out ", x.shape)
         
         mu = self.fc_mu(x)
         std = self.fc_std(x)
+
+        #print("mu ", x.shape, " std ", std.shape)
 
         return mu, std
     
@@ -432,27 +448,37 @@ class Decoder(nn.Module):
         for layer_index in range(1, conv_layer_count):
             self.conv_layers.append(nn.BatchNorm2d(conv_channel_counts[layer_index-1]))
             self.conv_layers.append(nn.Upsample(scale_factor=stride, mode="nearest"))
-            #self.conv_layers.append(nn.ConvTranspose2d(conv_channel_counts[layer_index-1], conv_channel_counts[layer_index], self.conv_kernel_size, stride=stride, padding=padding, output_padding=output_padding))
-            # first upsampling stage: no bias, no activation directly after, to avoid seeding a
-            # DC-offset spectral peak that later layers would otherwise replicate across the band
             use_bias = layer_index != 1
             self.conv_layers.append(nn.Conv2d(conv_channel_counts[layer_index-1], conv_channel_counts[layer_index], self.conv_kernel_size, stride=1, padding=same_padding, bias=use_bias))
             self.conv_layers.append(nn.LeakyReLU(0.2))
             
         self.conv_layers.append(nn.BatchNorm2d(conv_channel_counts[-1]))
-        #self.conv_layers.append(nn.ConvTranspose2d(conv_channel_counts[-1], 1, self.conv_kernel_size, stride=stride, padding=padding, output_padding=output_padding))
         self.conv_layers.append(nn.Upsample(scale_factor=stride, mode="nearest"))
         self.conv_layers.append(nn.Conv2d(conv_channel_counts[-1], 1, self.conv_kernel_size, stride=1, padding=same_padding))
 
     def forward(self, x):
+
+        print("x0 ", x.shape)
         
         for lI, layer in enumerate(self.dense_layers):
+
+            print("dense layer ", lI, " x-in ", x.shape)
+
             x = layer(x)
+
+            print("dense layer ", lI, " x-out ", x.shape)
         
         x = self.unflatten(x)
 
+        #print("x-unflat ", x.shape)
+
         for lI, layer in enumerate(self.conv_layers):
+
+            print("conv layer ", lI, " x-in ", x.shape)
+
             x = layer(x)
+
+            print("conv layer ", lI, " x-out ", x.shape)
     
         return x
     
