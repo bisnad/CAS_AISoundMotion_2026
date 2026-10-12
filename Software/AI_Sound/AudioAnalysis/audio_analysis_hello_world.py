@@ -143,6 +143,8 @@ def plot_waveform_and_feature(title, audio_waveform, audio_feature, audio_sample
     plt.show()
 
 # root-mean-square (RMS)
+# Average energy of each frame (square root of the mean squared amplitude).
+# Relates to perceived loudness and dynamics.
 
 frame_length = 2048
 hop_length=512
@@ -154,6 +156,8 @@ rms = rms.flatten()
 plot_waveform_and_feature("root mean square", audio_waveform, rms, audio_sample_rate, hop_length)
 
 # power spectrum
+# Squared magnitude of the STFT per frequency bin, shown in dB.
+# Relates to how energy is distributed across frequencies (overall timbre, loudness per band).
 
 frame_length=2048
 hop_length=512
@@ -166,6 +170,8 @@ power_spectrum = librosa.power_to_db(power_spectrum, ref=np.max)
 plot_waveform_and_feature("power spectrogram", audio_waveform, power_spectrum, audio_sample_rate, hop_length)
 
 # zero crossing rate
+# Rate at which the waveform changes sign within a frame.
+# Rough indicator of noisiness and brightness; high for noisy or percussive sounds, low for tonal, low-pitched ones.
 
 frame_length = 2048
 hop_length=512
@@ -177,6 +183,8 @@ zcr = zcr.flatten()
 plot_waveform_and_feature("zero crossing rate", audio_waveform, zcr, audio_sample_rate, hop_length)
 
 # chroma stft
+# Energy folded into the 12 pitch classes, computed from the STFT.
+# Relates to pitch class, harmony and tonality, independent of octave.
 
 frame_length = 2048
 hop_length=512
@@ -187,6 +195,8 @@ chroma_stft = librosa.feature.chroma_stft(y=audio_waveform, sr=audio_sample_rate
 plot_waveform_and_feature("chroma stft", audio_waveform, chroma_stft, audio_sample_rate, hop_length)
 
 # chroma cqt
+# 12-pitch-class energy computed from a constant-Q transform.
+# Like chroma stft, but with better low-frequency resolution, so it tracks harmony and pitch content more reliably.
 
 frame_length = 2048
 hop_length=512
@@ -199,6 +209,8 @@ cqt = librosa.feature.chroma_cqt(y=audio_waveform, sr=audio_sample_rate, hop_len
 plot_waveform_and_feature("chroma cqt", audio_waveform, cqt, audio_sample_rate, hop_length)
 
 # chroma cens
+# Chroma energy normalized statistics: chroma that is normalized, quantized and smoothed over time.
+# Relates to longer-term harmonic content, robust to dynamics and timbre changes.
 
 frame_length = 2048
 hop_length=512
@@ -211,6 +223,8 @@ cens = librosa.feature.chroma_cens(y=audio_waveform, sr=audio_sample_rate, hop_l
 plot_waveform_and_feature("chroma cens", audio_waveform, cens, audio_sample_rate, hop_length)
 
 # chroma vqt
+# Pitch-class energy from a variable-Q transform, here using just-intonation intervals.
+# Relates to harmony and tuning in non-12-tone-equal-tempered or microtonal music.
 
 frame_length = 2048
 hop_length=512
@@ -220,6 +234,8 @@ vqt = librosa.feature.chroma_vqt(y=audio_waveform, sr=audio_sample_rate, interva
 plot_waveform_and_feature("chroma vqt", audio_waveform, vqt, audio_sample_rate, hop_length)
 
 # tonal centroid features
+# Tonnetz: projection of chroma onto 6 dimensions (fifths, minor thirds, major thirds).
+# Relates to harmonic relations and chord/key changes, e.g. consonance and harmonic movement.
 
 frame_length = 2048
 hop_length=512
@@ -231,6 +247,8 @@ tnz = librosa.feature.tonnetz(y=audio_waveform, sr=audio_sample_rate, chroma=chr
 plot_waveform_and_feature("tonal centroid features", audio_waveform, tnz, audio_sample_rate, hop_length)
 
 # mel spectrogram
+# Spectrogram with frequency bins spaced on the perceptual mel scale.
+# Relates to how the human ear resolves pitch and frequency, and to overall timbre and loudness.
 
 frame_length = 2048
 hop_length=512
@@ -241,6 +259,8 @@ mel = librosa.feature.melspectrogram(y=audio_waveform, sr=audio_sample_rate, n_f
 plot_waveform_and_feature("mel spectrogram", audio_waveform, mel, audio_sample_rate, hop_length)
 
 # mel-frequency cepstral coefficients
+# Compact description of the spectral envelope (DCT of the log mel spectrum).
+# Relates to timbre, such as vowel quality or instrument identity.
 
 frame_length = 2048
 hop_length=512
@@ -251,6 +271,8 @@ mfcc = librosa.feature.mfcc(y=audio_waveform, sr=audio_sample_rate, n_fft=frame_
 plot_waveform_and_feature("mel-frequency cepstral coefficients", audio_waveform, mfcc, audio_sample_rate, hop_length)
 
 # spectral centroid
+# Centre of mass (weighted mean frequency) of the spectrum.
+# Relates to perceived brightness: higher means a brighter sound.
 
 frame_length = 2048
 hop_length=512
@@ -262,6 +284,8 @@ spectral_centroid = spectral_centroid.flatten()
 plot_waveform_and_feature("spectral centroid", audio_waveform, spectral_centroid, audio_sample_rate, hop_length)
 
 # spectral bandwidth
+# Represents the spread of the spectrum.
+# It is used as an indication of the complexity versus purity of a tone.
 
 frame_length = 2048
 hop_length=512
@@ -273,6 +297,8 @@ spectral_bandwidth = spectral_bandwidth.flatten()
 plot_waveform_and_feature("spectral bandwidth", audio_waveform, spectral_bandwidth, audio_sample_rate, hop_length)
 
 # spectral contrast
+# Difference between peak and valley energy in each of several frequency sub-bands.
+# Relates to tonal clarity versus noisiness, and to the distinction between harmonic peaks and noisy background.
 
 frame_length = 2048
 hop_length=512
@@ -284,6 +310,8 @@ spectral_contrast = spectral_contrast.flatten()
 plot_waveform_and_feature("spectral contrast", audio_waveform, spectral_contrast, audio_sample_rate, hop_length)
 
 # spectral flatness
+# Ratio of geometric to arithmetic mean of the spectrum (0 to 1).
+# Relates to tonality versus noisiness: low for pure tones, high for noise-like sounds.
 
 frame_length = 2048
 hop_length=512
@@ -295,6 +323,8 @@ spectral_flatness = spectral_flatness.flatten()
 plot_waveform_and_feature("spectral flatness", audio_waveform, spectral_flatness, audio_sample_rate, hop_length)
 
 # spectral rolloff
+# Frequency below which a given fraction (default 85%) of the spectral energy lies.
+# Relates to brightness and the upper limit of the main spectral content, separating voiced from noisy or high-frequency sounds.
 
 frame_length = 2048
 hop_length=512
@@ -306,6 +336,8 @@ spectral_rolloff = spectral_rolloff.flatten()
 plot_waveform_and_feature("spectral rolloff", audio_waveform, spectral_rolloff, audio_sample_rate, hop_length)
 
 # poly features
+# Frequency below which a given fraction (default 85%) of the spectral energy lies.
+# Relates to brightness and the upper limit of the main spectral content, separating voiced from noisy or high-frequency sounds.
 
 frame_length = 2048
 hop_length=512
@@ -318,6 +350,8 @@ poly_features = poly_features.flatten()
 plot_waveform_and_feature("poly features", audio_waveform, poly_features, audio_sample_rate, hop_length)
 
 # onset strength
+# Positive spectral change (spectral flux) between consecutive frames.
+# Relates to the perception of note attacks, transients and rhythmic events.
 
 frame_length = 2048
 hop_length=512
@@ -329,6 +363,8 @@ onset_strength = onset_strength.flatten()
 plot_waveform_and_feature("onset strength", audio_waveform, onset_strength, audio_sample_rate, hop_length)
 
 # tempogram
+# Local autocorrelation of the onset strength envelope.
+# Relates to rhythm, tempo and its variation over time (periodicity of beats).
 
 frame_length = 2048
 hop_length=512
@@ -339,6 +375,8 @@ tempogram = tempogram.flatten()
 plot_waveform_and_feature("temtempogrampo", audio_waveform, tempogram, audio_sample_rate, hop_length)
 
 # fourier tempogram
+# Short-time Fourier transform of the onset strength envelope.
+# Relates to rhythm and tempo as periodicities of events, shown in beats per minute.
 
 frame_length = 2048
 hop_length=512
@@ -349,6 +387,8 @@ fourier_tempogram = fourier_tempogram.flatten()
 plot_waveform_and_feature("fourier tempogram", audio_waveform, fourier_tempogram, audio_sample_rate, hop_length)
 
 # tempogram ratio
+# Tempogram energy at factors of the tempo (for example 1/4, 1/3, 1/2, 1, 3/2, 2, 3, 4 times the tempo).
+# Relates to metrical structure and rhythmic feel (duple versus triple meter, subdivisions).
 
 frame_length = 2048
 hop_length=512
