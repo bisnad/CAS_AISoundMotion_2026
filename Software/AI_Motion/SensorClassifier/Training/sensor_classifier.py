@@ -33,6 +33,7 @@ print(f"Using {device} device")
 Sensor Data Settings
 """
 
+"""
 # Example: Mobile Phone Data (Sensor2Osc)
 sensor_data_file_path = "data/sensors_phone/"
 sensor_data_file_extensions = [".npz"] 
@@ -40,8 +41,8 @@ sensor_data_ids = ["/accelerometer", "/gyroscope"] # OSC addresses to extract
 sensor_data_window_length = 60
 sensor_data_window_offset = 20
 sensor_stats_load = False # load previously calculated stats instead of calculating new ones
-
 """
+
 # Example: Imu Data
 sensor_data_file_path = "data/sensors_imu/"
 sensor_data_file_extensions = [".npz"] 
@@ -49,7 +50,7 @@ sensor_data_ids = ["/imu/1/accelerometer", "/imu/1/gyroscope"] # OSC addresses t
 sensor_data_window_length = 60
 sensor_data_window_offset = 20
 sensor_stats_load = False # load previously calculated stats instead of calculating new ones
-"""
+
 
 """
 Model Settings
@@ -81,7 +82,7 @@ model_weights_file = "results/sensors_imu_2/weights/classifier_epoch_400.pth"
 Save Paths Settings
 """
 
-save_path = "results/sensors_phone"
+save_path = "results/sensors_phone_test"
 #save_path = "results/sensors_imu"
 save_stats_path = save_path + "/stats"
 save_history_path = save_path + "/history"

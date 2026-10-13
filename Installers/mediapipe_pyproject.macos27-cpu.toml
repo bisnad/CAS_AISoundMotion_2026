@@ -1,0 +1,30 @@
+[project]
+name = "mediapipe-toolbox"
+version = "0.1.0"
+description = "MediaPipe-based pose/hand/face tracking tools"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "numpy==1.26.4",
+    "opencv-contrib-python==4.11.0.86",
+    "protobuf",
+    "absl-py",
+    "scipy",
+    "PyQt5",
+    "pyqtgraph",
+    "PyOpenGL",
+    "mediapipe==0.10.21",
+    "python-osc",
+    "fbx",
+]
+
+[tool.uv]
+environments = [
+    "sys_platform == 'darwin' and platform_machine == 'arm64'"
+]
+
+required-environments = [
+    "sys_platform == 'darwin' and platform_machine == 'arm64'"
+]
+
+[tool.uv.sources]
+fbx = { path = "../../../../Installers/fbx-2020.3.7-cp310-cp310-macosx_10_15_universal2.whl" }
