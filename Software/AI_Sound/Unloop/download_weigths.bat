@@ -14,17 +14,17 @@ set "MODEL_DIR=models\unloop"
 set "REPO_ID=hugggof/vampnet"
 set "FILES=codec.pth coarse.pth c2f.pth wavebeat.pth"
 
-where ffprobe >nul 2>nul
-if errorlevel 1 (
-    echo ffprobe not found. Install FFmpeg first ^(e.g. via the project's 1>&2
-    echo static-ffmpeg dependency, or download a build from ffmpeg.org^) 1>&2
-    exit /b 1
-)
-
 if not exist "%MODEL_DIR%" mkdir "%MODEL_DIR%"
 
 uv sync
 if errorlevel 1 exit /b 1
+
+REM where ffprobe >nul 2>nul
+REM if errorlevel 1 (
+REM     echo ffprobe not found. Install FFmpeg first ^(e.g. via the project's 1>&2
+REM     echo static-ffmpeg dependency, or download a build from ffmpeg.org^) 1>&2
+REM     exit /b 1
+REM )
 
 for %%F in (%FILES%) do (
     if exist "%MODEL_DIR%\%%F" (

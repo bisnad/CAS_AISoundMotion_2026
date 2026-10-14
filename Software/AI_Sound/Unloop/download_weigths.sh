@@ -14,13 +14,13 @@ MODEL_DIR="models/unloop"
 REPO_ID="hugggof/vampnet"
 FILES=("codec.pth" "coarse.pth" "c2f.pth" "wavebeat.pth")
 
-if ! command -v ffprobe &> /dev/null; then
-    echo "ffprobe not found. Install FFmpeg first, e.g.: brew install ffmpeg" >&2
-    exit 1
-fi
-
 mkdir -p "$MODEL_DIR"
 uv sync
+
+#if ! command -v ffprobe &> /dev/null; then
+#    echo "ffprobe not found. Install FFmpeg first, e.g.: brew install ffmpeg" >&2
+#    exit 1
+#fi
 
 for f in "${FILES[@]}"; do
     if [[ -f "$MODEL_DIR/$f" ]]; then
