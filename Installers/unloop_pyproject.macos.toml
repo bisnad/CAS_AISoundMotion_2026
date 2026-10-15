@@ -2,7 +2,7 @@
 name = "unloop"
 version = "0.1.0"
 description = "Unloop generative audio project"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.13"
 dependencies = [
     "torch>=2.6.0",
     "argbind>=0.3.2",
