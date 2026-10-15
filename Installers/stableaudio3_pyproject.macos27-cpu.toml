@@ -10,6 +10,7 @@ dependencies = [
     "numpy>=2.2.6",
     "packaging>=26.0",
     "safetensors>=0.7.0",
+    "scipy>=1.17.1",
     "torch==2.7.1",
     "torchaudio==2.7.1",
     "tqdm>=4.67.3",
