@@ -41,7 +41,7 @@ FILES=(
     "yolo_pyproject.macos27-cpu.toml|../Software/AI_Motion/MotionTracking/Yolo|pyproject.toml"
     "bark_tts_pyproject.macos_cpu.toml|../Software/AI_Sound/BarkTTS|pyproject.toml"
     "dancediffusion_pyproject.macos-cpu.toml|../Software/AI_Sound/DanceDiffusion|pyproject.toml"
-    "unloop_pyproject.macos.toml|../Software/AI_Sound/Unloop|pyproject.toml"
+    "unloop_pyproject.macos27.toml|../Software/AI_Sound/Unloop|pyproject.toml"
 )
 
 for entry in "${FILES[@]}"; do
