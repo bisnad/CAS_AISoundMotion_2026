@@ -530,6 +530,8 @@ class AudioAutoencoderGUI(QtWidgets.QWidget):
                     self.device_combo.setCurrentIndex(len(self.device_mapping) - 1)
 
         self.device_combo.currentIndexChanged.connect(self.on_device_changed)
+        self.on_device_changed(self.device_combo.currentIndex())
+        
         device_layout.addRow("Output Device:", self.device_combo)
         device_group.setLayout(device_layout)
         main_layout.addWidget(device_group)

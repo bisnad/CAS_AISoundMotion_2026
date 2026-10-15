@@ -484,6 +484,7 @@ class ScatterPlotApp(QtWidgets.QMainWindow):
                     self.device_combo.setCurrentIndex(len(self.device_mapping) - 1)
                     
         self.device_combo.currentIndexChanged.connect(self.on_device_changed)
+        self.on_device_changed(self.device_combo.currentIndex())
         
         self.device_layout.addWidget(self.device_label)
         self.device_layout.addWidget(self.device_combo)
