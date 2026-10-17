@@ -1,0 +1,30 @@
+[project]
+name = "ai-motion"
+version = "0.1.0"
+description = "Motion analysis, autoencoder, and clustering scripts"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "torch==2.7.1",
+    "torchaudio==2.7.1",
+    "diffusers==0.40.0",
+    "transformers>=5.8.0",
+    "scikit-learn==1.5.2",
+    "matplotlib>=3.10.8",
+    "pandas",
+    "transforms3d",
+    "PyQt5",
+    "pyqtgraph",
+    "PyOpenGL",
+    "vispy",
+    "jupyterlab",
+    "python-osc",
+    "ipywidgets",
+    "fbx",
+]
+
+[tool.uv.sources]
+fbx = [
+    { path = "../../Installers/fbx-2020.3.7-cp310-none-win_amd64.whl", marker = "sys_platform == 'win32' and platform_machine == 'AMD64'" },
+    { path = "../../Installers/fbx-2020.3.7-cp310-cp310-manylinux1_x86_64.whl", marker = "sys_platform == 'linux' and platform_machine == 'x86_64'" },
+    { path = "../../Installers/fbx-2020.3.11-cp312-cp312-macosx_11_0_arm64.whl", marker = "sys_platform == 'darwin'" },
+]
