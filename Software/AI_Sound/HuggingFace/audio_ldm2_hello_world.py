@@ -189,7 +189,7 @@ prompt1 = "Creaking Wood"
 prompt2 = "Violin"
 negative_prompt = "Low quality."
 
-mix_weight = 0.5  # weight of prompt1 (only used for "average" and for the GPT-2 embeddings)
+mix_weight = 2.0  # weight of prompt1 (only used for "average" and for the GPT-2 embeddings)
 
 # Encode both positive prompts and the negative prompt (CFG disabled)
 p1, m1, g1 = pipe.encode_prompt(
@@ -219,11 +219,16 @@ neg_p, neg_m, neg_g = pipe.encode_prompt(
 L = max(p1.shape[1], p2.shape[1])
 p1, m1 = match_length(p1, m1, L)
 p2, m2 = match_length(p2, m2, L)
-prompt_embeds_mix = mix_weight * p1 + (1.0 - mix_weight) * p2
+#prompt_embeds_mix = mix_weight * p1 + (1.0 - mix_weight) * p2
+
+prompt_embeds_mix = mix_weight * p1 - mix_weight * p2
+
+
 attention_mask_mix = torch.maximum(m1, m2)
 
 # GPT-2 generated embeddings have a fixed length, so a weighted average works directly
-generated_prompt_embeds_mix = mix_weight * g1 + (1.0 - mix_weight) * g2
+# generated_prompt_embeds_mix = mix_weight * g1 + (1.0 - mix_weight) * g2
+generated_prompt_embeds_mix = mix_weight * g1 - mix_weight * g2
 
 # the negative branch must have the same sequence length as the mixed positive branch
 neg_p, neg_m = match_length(neg_p, neg_m, prompt_embeds_mix.shape[1])

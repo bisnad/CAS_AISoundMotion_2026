@@ -93,7 +93,7 @@ torchaudio.save("stable_audio_3_text_to_audio.wav", text_to_audio_result[0].deta
 # ----------------------------------------------------------------------------
 
 audio_file = "data/audio/hitting_metal.wav"
-initial_noise_level = 0.4
+initial_noise_level = 0.2
 prompt = "footsteps on gravel"
 negative_prompt = "low-quality, distorted, noisy"
 duration = 5.0
