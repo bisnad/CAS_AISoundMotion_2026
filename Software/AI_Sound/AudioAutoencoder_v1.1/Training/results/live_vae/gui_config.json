@@ -1,0 +1,805 @@
+{
+  "format": "live_audio_vae_gui_config",
+  "version": 4,
+  "elements": {
+    "data.files": {
+      "common": true
+    },
+    "data.chunk_on_load": {
+      "common": false,
+      "value": 0.0,
+      "range": [
+        0.0,
+        60.0
+      ]
+    },
+    "data.range_start": {
+      "common": false,
+      "value": 0.0,
+      "range": [
+        0.0,
+        9.444333333333333
+      ]
+    },
+    "data.range_end": {
+      "common": false,
+      "value": 9.44,
+      "range": [
+        0.0,
+        9.444333333333333
+      ]
+    },
+    "inference.device": {
+      "common": false,
+      "value": "8: Speakers (Realtek(R) Audio)"
+    },
+    "inference.file": {
+      "common": false,
+      "value": "SSB00050001.wav"
+    },
+    "inference.start": {
+      "common": false,
+      "value": 0.0,
+      "range": [
+        0.0,
+        9.444333333333333
+      ]
+    },
+    "inference.end": {
+      "common": false,
+      "value": 9.444,
+      "range": [
+        0.0,
+        9.444333333333333
+      ]
+    },
+    "inference.use_mean": {
+      "common": false,
+      "value": false
+    },
+    "inference.noise": {
+      "common": false,
+      "value": 0.0,
+      "range": [
+        0.0,
+        2.0
+      ]
+    },
+    "inference.gain": {
+      "common": false,
+      "value": 1.0,
+      "range": [
+        0.0,
+        2.0
+      ]
+    },
+    "inference.audio_buttons": {
+      "common": false
+    },
+    "training.rec_loss_scale": {
+      "common": false,
+      "value": 5.0,
+      "range": [
+        0.0,
+        15.0
+      ]
+    },
+    "training.beta": {
+      "common": true,
+      "value": 0.01,
+      "range": [
+        0.0,
+        0.1
+      ]
+    },
+    "training.learning_rate": {
+      "common": true,
+      "value": 0.0005,
+      "range": [
+        1e-06,
+        0.01
+      ]
+    },
+    "training.optimizer": {
+      "common": false,
+      "value": "AdamW"
+    },
+    "training.batch_mode": {
+      "common": false,
+      "value": "Random windows"
+    },
+    "training.batch_size": {
+      "common": false,
+      "value": 32,
+      "range": [
+        1.0,
+        128.0
+      ]
+    },
+    "training.lbfgs_iters": {
+      "common": false,
+      "value": 4,
+      "range": [
+        1.0,
+        50.0
+      ]
+    },
+    "training.lbfgs_history": {
+      "common": false,
+      "value": 10,
+      "range": [
+        1.0,
+        100.0
+      ]
+    },
+    "training.lbfgs_hold": {
+      "common": false,
+      "value": 10,
+      "range": [
+        1.0,
+        100.0
+      ]
+    },
+    "training.sync_interval": {
+      "common": false,
+      "value": 5,
+      "range": [
+        1.0,
+        50.0
+      ]
+    },
+    "training.train_mode": {
+      "common": false,
+      "value": "Full network"
+    },
+    "training.lora_rank": {
+      "common": false,
+      "value": 8,
+      "range": [
+        1.0,
+        32.0
+      ]
+    },
+    "training.lora_alpha": {
+      "common": false,
+      "value": 8.0,
+      "range": [
+        0.1,
+        32.0
+      ]
+    },
+    "training.controls": {
+      "common": false
+    },
+    "losses.vae_mel.weight": {
+      "common": true,
+      "value": 0.5,
+      "range": [
+        0.0,
+        2.0
+      ]
+    },
+    "losses.vae_mel.dist": {
+      "common": false,
+      "value": "L1"
+    },
+    "losses.mr_stft.weight": {
+      "common": true,
+      "value": 0.5,
+      "range": [
+        0.0,
+        2.0
+      ]
+    },
+    "losses.mr_stft.n_bins": {
+      "common": false,
+      "value": 128,
+      "range": [
+        16.0,
+        512.0
+      ]
+    },
+    "losses.mr_stft.perceptual": {
+      "common": false,
+      "value": true
+    },
+    "losses.lin_mr.weight": {
+      "common": true,
+      "value": 0.5,
+      "range": [
+        0.0,
+        2.0
+      ]
+    },
+    "losses.lin_mr.n_res": {
+      "common": false,
+      "value": 3,
+      "range": [
+        1.0,
+        5.0
+      ]
+    },
+    "losses.lin_mr.min_fft": {
+      "common": false,
+      "value": "512"
+    },
+    "losses.lin_mr.n_bands": {
+      "common": false,
+      "value": 0,
+      "range": [
+        0.0,
+        2048.0
+      ]
+    },
+    "losses.lin_mr.dist": {
+      "common": false,
+      "value": "L1"
+    },
+    "losses.flatness.weight": {
+      "common": true,
+      "value": 0.5,
+      "range": [
+        0.0,
+        2.0
+      ]
+    },
+    "losses.flatness.n_fft": {
+      "common": false,
+      "value": "2048"
+    },
+    "losses.flatness.n_bands": {
+      "common": false,
+      "value": 8,
+      "range": [
+        1.0,
+        64.0
+      ]
+    },
+    "losses.flatness.db_div": {
+      "common": false,
+      "value": 10.0,
+      "range": [
+        1.0,
+        200.0
+      ]
+    },
+    "losses.flatness.dist": {
+      "common": false,
+      "value": "L1"
+    },
+    "losses.mel_mr.weight": {
+      "common": false,
+      "value": 0.0,
+      "range": [
+        0.0,
+        2.0
+      ]
+    },
+    "losses.mel_mr.n_res": {
+      "common": false,
+      "value": 3,
+      "range": [
+        1.0,
+        5.0
+      ]
+    },
+    "losses.mel_mr.min_fft": {
+      "common": false,
+      "value": "512"
+    },
+    "losses.mel_mr.n_mels": {
+      "common": false,
+      "value": 80,
+      "range": [
+        8.0,
+        256.0
+      ]
+    },
+    "losses.mel_mr.dist": {
+      "common": false,
+      "value": "L1"
+    },
+    "losses.mfcc.weight": {
+      "common": false,
+      "value": 0.0,
+      "range": [
+        0.0,
+        2.0
+      ]
+    },
+    "losses.mfcc.n_mfcc": {
+      "common": false,
+      "value": 20,
+      "range": [
+        2.0,
+        128.0
+      ]
+    },
+    "losses.mfcc.n_mels": {
+      "common": false,
+      "value": 64,
+      "range": [
+        8.0,
+        256.0
+      ]
+    },
+    "losses.mfcc.n_fft": {
+      "common": false,
+      "value": "2048"
+    },
+    "losses.mfcc.skip_c0": {
+      "common": false,
+      "value": true
+    },
+    "losses.mfcc.deltas": {
+      "common": false,
+      "value": false
+    },
+    "losses.mfcc.dist": {
+      "common": false,
+      "value": "L1"
+    },
+    "losses.loudness.weight": {
+      "common": false,
+      "value": 0.0,
+      "range": [
+        0.0,
+        2.0
+      ]
+    },
+    "losses.loudness.mode": {
+      "common": false,
+      "value": "A-weighted STFT (fast)"
+    },
+    "losses.loudness.n_fft": {
+      "common": false,
+      "value": "2048"
+    },
+    "losses.loudness.db_div": {
+      "common": false,
+      "value": 20.0,
+      "range": [
+        1.0,
+        200.0
+      ]
+    },
+    "losses.loudness.dist": {
+      "common": false,
+      "value": "L1"
+    },
+    "losses.centroid.weight": {
+      "common": false,
+      "value": 0.0,
+      "range": [
+        0.0,
+        2.0
+      ]
+    },
+    "losses.centroid.n_fft": {
+      "common": false,
+      "value": "2048"
+    },
+    "losses.centroid.log2": {
+      "common": false,
+      "value": true
+    },
+    "losses.centroid.dist": {
+      "common": false,
+      "value": "L1"
+    },
+    "losses.lw_centroid.weight": {
+      "common": false,
+      "value": 0.0,
+      "range": [
+        0.0,
+        2.0
+      ]
+    },
+    "losses.lw_centroid.n_fft": {
+      "common": false,
+      "value": "2048"
+    },
+    "losses.lw_centroid.exponent": {
+      "common": false,
+      "value": 1.0,
+      "range": [
+        0.0,
+        4.0
+      ]
+    },
+    "losses.lw_centroid.log2": {
+      "common": false,
+      "value": true
+    },
+    "losses.temporal.weight": {
+      "common": false,
+      "value": 0.0,
+      "range": [
+        0.0,
+        2.0
+      ]
+    },
+    "losses.temporal.frame": {
+      "common": false,
+      "value": "512"
+    },
+    "losses.temporal.segments": {
+      "common": false,
+      "value": 16,
+      "range": [
+        1.0,
+        128.0
+      ]
+    },
+    "losses.temporal.dist": {
+      "common": false,
+      "value": "L1"
+    },
+    "losses.bandwidth.weight": {
+      "common": false,
+      "value": 0.0,
+      "range": [
+        0.0,
+        2.0
+      ]
+    },
+    "losses.bandwidth.n_fft": {
+      "common": false,
+      "value": "2048"
+    },
+    "losses.bandwidth.exponent": {
+      "common": false,
+      "value": 0.0,
+      "range": [
+        0.0,
+        4.0
+      ]
+    },
+    "losses.bandwidth.dist": {
+      "common": false,
+      "value": "L1"
+    },
+    "losses.contrast.weight": {
+      "common": false,
+      "value": 0.0,
+      "range": [
+        0.0,
+        2.0
+      ]
+    },
+    "losses.contrast.n_fft": {
+      "common": false,
+      "value": "2048"
+    },
+    "losses.contrast.n_bands": {
+      "common": false,
+      "value": 6,
+      "range": [
+        1.0,
+        6.0
+      ]
+    },
+    "losses.contrast.fmin": {
+      "common": false,
+      "value": 200.0,
+      "range": [
+        20.0,
+        2000.0
+      ]
+    },
+    "losses.contrast.quantile": {
+      "common": false,
+      "value": 0.02,
+      "range": [
+        0.005,
+        0.5
+      ]
+    },
+    "losses.contrast.db_div": {
+      "common": false,
+      "value": 30.0,
+      "range": [
+        1.0,
+        200.0
+      ]
+    },
+    "losses.contrast.exponent": {
+      "common": false,
+      "value": 0.0,
+      "range": [
+        0.0,
+        4.0
+      ]
+    },
+    "losses.contrast.dist": {
+      "common": false,
+      "value": "L1"
+    },
+    "losses.rolloff.weight": {
+      "common": false,
+      "value": 0.0,
+      "range": [
+        0.0,
+        2.0
+      ]
+    },
+    "losses.rolloff.n_fft": {
+      "common": false,
+      "value": "2048"
+    },
+    "losses.rolloff.percent": {
+      "common": false,
+      "value": 0.85,
+      "range": [
+        0.05,
+        0.99
+      ]
+    },
+    "losses.rolloff.sharpness": {
+      "common": false,
+      "value": 100.0,
+      "range": [
+        5.0,
+        1000.0
+      ]
+    },
+    "losses.rolloff.log2": {
+      "common": false,
+      "value": true
+    },
+    "losses.rolloff.exponent": {
+      "common": false,
+      "value": 0.0,
+      "range": [
+        0.0,
+        4.0
+      ]
+    },
+    "losses.rolloff.dist": {
+      "common": false,
+      "value": "L1"
+    },
+    "losses.onset.weight": {
+      "common": false,
+      "value": 0.0,
+      "range": [
+        0.0,
+        2.0
+      ]
+    },
+    "losses.onset.n_fft": {
+      "common": false,
+      "value": "2048"
+    },
+    "losses.onset.n_mels": {
+      "common": false,
+      "value": 128,
+      "range": [
+        8.0,
+        256.0
+      ]
+    },
+    "losses.onset.lag": {
+      "common": false,
+      "value": 1,
+      "range": [
+        1.0,
+        8.0
+      ]
+    },
+    "losses.onset.db_div": {
+      "common": false,
+      "value": 10.0,
+      "range": [
+        1.0,
+        200.0
+      ]
+    },
+    "losses.onset.dist": {
+      "common": false,
+      "value": "L1"
+    },
+    "losses.rms.weight": {
+      "common": false,
+      "value": 0.0,
+      "range": [
+        0.0,
+        2.0
+      ]
+    },
+    "losses.rms.frame": {
+      "common": false,
+      "value": "1024"
+    },
+    "losses.rms.in_db": {
+      "common": false,
+      "value": true
+    },
+    "losses.rms.db_div": {
+      "common": false,
+      "value": 20.0,
+      "range": [
+        1.0,
+        200.0
+      ]
+    },
+    "losses.rms.dist": {
+      "common": false,
+      "value": "L1"
+    },
+    "losses.zcr.weight": {
+      "common": false,
+      "value": 0.0,
+      "range": [
+        0.0,
+        2.0
+      ]
+    },
+    "losses.zcr.frame": {
+      "common": false,
+      "value": "1024"
+    },
+    "losses.zcr.sharpness": {
+      "common": false,
+      "value": 50.0,
+      "range": [
+        1.0,
+        1000.0
+      ]
+    },
+    "losses.zcr.dist": {
+      "common": false,
+      "value": "L1"
+    },
+    "losses.chroma.weight": {
+      "common": false,
+      "value": 0.0,
+      "range": [
+        0.0,
+        2.0
+      ]
+    },
+    "losses.chroma.n_fft": {
+      "common": false,
+      "value": "4096"
+    },
+    "losses.chroma.sigma": {
+      "common": false,
+      "value": 0.5,
+      "range": [
+        0.1,
+        2.0
+      ]
+    },
+    "losses.chroma.exponent": {
+      "common": false,
+      "value": 1.0,
+      "range": [
+        0.0,
+        4.0
+      ]
+    },
+    "losses.chroma.dist": {
+      "common": false,
+      "value": "L1"
+    },
+    "losses.tonnetz.weight": {
+      "common": false,
+      "value": 0.0,
+      "range": [
+        0.0,
+        2.0
+      ]
+    },
+    "losses.tonnetz.n_fft": {
+      "common": false,
+      "value": "4096"
+    },
+    "losses.tonnetz.sigma": {
+      "common": false,
+      "value": 0.5,
+      "range": [
+        0.1,
+        2.0
+      ]
+    },
+    "losses.tonnetz.exponent": {
+      "common": false,
+      "value": 1.0,
+      "range": [
+        0.0,
+        4.0
+      ]
+    },
+    "losses.tonnetz.dist": {
+      "common": false,
+      "value": "L1"
+    },
+    "losses.poly.weight": {
+      "common": false,
+      "value": 0.0,
+      "range": [
+        0.0,
+        2.0
+      ]
+    },
+    "losses.poly.n_fft": {
+      "common": false,
+      "value": "2048"
+    },
+    "losses.poly.order": {
+      "common": false,
+      "value": 1,
+      "range": [
+        0.0,
+        4.0
+      ]
+    },
+    "losses.poly.fit": {
+      "common": false,
+      "value": "log magnitude"
+    },
+    "losses.poly.exponent": {
+      "common": false,
+      "value": 0.0,
+      "range": [
+        0.0,
+        4.0
+      ]
+    },
+    "losses.poly.dist": {
+      "common": false,
+      "value": "L1"
+    },
+    "log.window_steps": {
+      "common": false,
+      "value": 2000,
+      "range": [
+        10.0,
+        100000.0
+      ]
+    },
+    "log.show_total": {
+      "common": false,
+      "value": false
+    },
+    "log.log_y": {
+      "common": false,
+      "value": false
+    },
+    "log.plot": {
+      "common": false
+    },
+    "session.panel": {
+      "common": false
+    },
+    "replay.panel": {
+      "common": false
+    }
+  },
+  "dataset": {
+    "path_format": "posix_relative",
+    "relative_to": "experiment_root",
+    "sources": [
+      "data/audio/SSB00050001.wav",
+      "data/audio/107_Laughter.wav"
+    ],
+    "entries": [
+      {
+        "name": "SSB00050001.wav",
+        "source": 0,
+        "offset": 0,
+        "length": 453328,
+        "enabled": true
+      },
+      {
+        "name": "107_Laughter.wav",
+        "source": 1,
+        "offset": 0,
+        "length": 503908,
+        "enabled": false
+      }
+    ]
+  },
+  "active_tab": 0
+}

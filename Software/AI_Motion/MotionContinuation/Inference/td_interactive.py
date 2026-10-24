@@ -39,15 +39,6 @@ print(f"Using {device} device")
 # -------------------------------------------------------------------------------------------------
 
 """
-# Example: FBX
-mocap_file_path = "data/mocap/"
-mocap_files = ["Muriel_Embodied_Machine.fbx.fbx"]
-mocap_topology_files = [None for _ in mocap_files]
-mocap_valid_time_ranges = [None for _ in mocap_files]
-mocap_pos_scale = 1.0
-mocap_fps = 50
-"""
-
 # Example: NPZ
 mocap_file_path = "data/mocap/"
 mocap_files = ["MadelineHarms_Improvisation.npz"]
@@ -55,6 +46,26 @@ mocap_valid_time_ranges = [ [ [ 10.0, 884.0 ] ] ] # in seconds
 mocap_topology_files = [ "data/configs/Mediapipe_config.json" ] # only used for .npz files
 mocap_pos_scale = 100.0
 mocap_fps = 25
+"""
+
+"""
+# Example: FBX
+mocap_file_path = "../../../../../CAS_AISoundMotion_Data_2026/Mocap/Stocos/Solos/XSens_fbx_50fps/"
+mocap_files = ["Muriel_Embodied_Machine.fbx"]
+mocap_topology_files = [None for _ in mocap_files]
+mocap_valid_time_ranges = [None for _ in mocap_files]
+mocap_pos_scale = 1.0
+mocap_fps = 50
+"""
+
+# Example: FBX
+mocap_file_path = "../../../../../CAS_AISoundMotion_Data_2026/Mocap/Offenburg/Solos/Qualisys_fbx_50fps/"
+mocap_files = ["Saskia_Bipolar_Final_50hz_07.12.2025.fbx"]
+mocap_topology_files = [None for _ in mocap_files]
+mocap_valid_time_ranges = [None for _ in mocap_files]
+mocap_pos_scale = 1.0
+mocap_fps = 50
+
 
 train_root_trajectory = False
 
@@ -70,7 +81,10 @@ decoder_ff_dim = 2048
 decoder_dropout = 0.1
 sequence_length = 64
 
-decoder_weights_file = "data/results/weights/decoder_weights_epoch_400.pth"
+#decoder_weights_file = "data/results/weights/decoder_weights_epoch_400.pth"
+#decoder_weights_file = "../../../../../CAS_AISoundMotion_Data_2026/Models/AI_Motion/MotionContinuation/Muriel_Embodied_Machine_fbx/weights/decoder_weights_epoch_400.pth"
+decoder_weights_file = "../../../../../CAS_AISoundMotion_Data_2026/Models/AI_Motion/MotionContinuation/Saskia_Offenburg_2025_fbx/weights/decoder_weights_epoch_400.pth"
+
 
 gaussian_temp = 0.2
 pi_temperature = 1.5

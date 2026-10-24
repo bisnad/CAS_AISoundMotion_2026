@@ -14,3 +14,8 @@ __pycache__/
 /Software/AI_Sound/DanceDiffusion/models
 /Software/AI_Sound/Unloop/models
 /Software/AI_Sound/Unloop/scratch/feedback_batches
+/Software/AI_Motion/MocapClustering/common/__pycache__
+/Software/AI_Motion/MocapClustering/common/__pycache__
+/Software/AI_Sound/AudioAutoencoder_v1.1/Training/results/live_vae/sessions
+/Software/AI_Sound/AudioAutoencoder_v1.1/Training/results/live_vae/weights
+/Software/AI_Sound/AudioAutoencoder_v1.1/Training/results/vae_cnn_conv_Gutenberg_ld32_simple

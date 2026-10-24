@@ -51,6 +51,7 @@ print(f"Using {device} device")
 # Mocap Settings
 # -------------------------------------------------------------------------------------------------
 
+"""
 # Example 1: FBX
 mocap_file_path = "data/mocap/"
 mocap_files = ["Muriel_Blumen_Baile.fbx", "Muriel_RO_37-4-1.fbx"]
@@ -58,6 +59,7 @@ mocap_topology_files = [None, None]
 mocap_pos_scale = 1.0
 mocap_fps = 50
 mocap_root_trajectory = False
+"""
 
 """
 # Example 3: NPZ
@@ -68,6 +70,15 @@ mocap_pos_scale = 100.0
 mocap_fps = 30
 mocap_root_trajectory = False
 """
+
+# Example: FBX
+mocap_file_path = "../../../../../../CAS_AISoundMotion_Data_2026/Mocap/Offenburg/Solos/Qualisys_fbx_50fps/"
+mocap_files = ["Saskia_Bipolar_Final_50hz_07.12.2025.fbx", "Saskia_Stuttgart_Final_50hz_07.12.2025.fbx", "Saskia_Waldspaziergang_Final_50hz_07.12.2025.fbx"]
+mocap_topology_files = [None, None, None]
+mocap_pos_scale = 1.0
+mocap_fps = 50
+mocap_root_trajectory = False
+
 
 # -------------------------------------------------------------------------------------------------
 # Model Settings
@@ -84,7 +95,8 @@ vae_window_length = 64
 # Training Settings
 # -------------------------------------------------------------------------------------------------
 
-vae_weights_file = "data/results/weights/vae_weight_epoch_200.pt"
+#vae_weights_file = "data/results/weights/vae_weight_epoch_200.pt"
+vae_weights_file = "../../../../../../CAS_AISoundMotion_Data_2026/Models/AI_Motion/MotionAutoencoder/Saskia_Offenburg_2025_ld16/weights/vae_weight_epoch_200.pt"
 
 # -------------------------------------------------------------------------------------------------
 # OSC Settings
@@ -94,7 +106,7 @@ osc_send_ip = "127.0.0.1"
 osc_send_port = 9004
 
 osc_receive_ip = "0.0.0.0"
-osc_receive_port = 9005
+osc_receive_port = 9007
 
 # -------------------------------------------------------------------------------------------------
 # Load Mocap Data
@@ -204,7 +216,7 @@ motion_synthesis.config["mocap_fps"] = mocap_fps
 motion_synthesis.config["orig_sequences"] = all_pose_sequences
 motion_synthesis.config["orig_seq1_index"] = 0
 motion_synthesis.config["orig_seq2_index"] = 0
-motion_synthesis.config["use_live_seq1"] = False
+motion_synthesis.config["use_live_seq1"] = True
 motion_synthesis.config["use_live_seq2"] = False
 
 synthesis = motion_synthesis.MotionSynthesis(motion_synthesis.config)

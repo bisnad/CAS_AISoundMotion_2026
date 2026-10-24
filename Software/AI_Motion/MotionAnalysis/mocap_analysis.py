@@ -27,8 +27,9 @@ import numpy as np
 Mocap Settings
 """
 
-mocap_config_path = "configs/xsens_fbx_config.json"
+#mocap_config_path = "configs/xsens_fbx_config.json"
 #mocap_config_path = "configs/zed34_fbx_config.json"
+mocap_config_path = "configs/qualisys_fbx_config.json"
 
 # load mocap config
 with open(mocap_config_path) as json_data:
