@@ -616,12 +616,36 @@ class ClusterGui(QtWidgets.QWidget):
         right.addWidget(self.q_excerpt_list, 1)
         panel = QtWidgets.QWidget()
         panel.setLayout(right)
-        panel.setFixedWidth(380)
+
+        # scrollable control panel: window height no longer depends on its content
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidget(panel)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll.setFixedWidth(400)          # 380 panel + scrollbar
+
+        # keep the lists usable inside the scroll area
+        self.q_cluster_list.setMinimumHeight(120)
+        self.q_excerpt_list.setMinimumHeight(120)
+
+        # let the 3D view and info label shrink freely
+        self.canvas.setMinimumSize(200, 150)
+        self.info_label.setSizePolicy(QtWidgets.QSizePolicy.Ignored,
+                                      QtWidgets.QSizePolicy.Fixed)
 
         layout = QtWidgets.QHBoxLayout(self)
         layout.addLayout(left, 1)
-        layout.addWidget(panel)
-        self.setGeometry(50, 50, 1280, 1000)
+        layout.addWidget(scroll)
+
+        # small minimum size + start size clamped to the available screen
+        self.setMinimumSize(700, 250)
+        screen = QtWidgets.QApplication.primaryScreen().availableGeometry()
+        w = min(1280, screen.width() - 100)
+        h = min(1000, screen.height() - 100)
+        self.resize(w, h)
+        self.move(screen.x() + 50, screen.y() + 50)
         self.setWindowTitle("Motion Clustering")
 
         self.timer = QTimer(self)
