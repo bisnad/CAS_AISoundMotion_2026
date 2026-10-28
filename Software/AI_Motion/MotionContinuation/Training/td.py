@@ -59,6 +59,14 @@ mocap_pos_scale = 1.0
 mocap_fps = 50
 """
 
+mocap_file_path = "../../../../../CAS_AISoundMotion_Data_2026/Mocap/Offenburg/Solos/Qualisys_fbx_50fps/"
+mocap_files = ["Saskia_Bipolar_Final_50hz_07.12.2025.fbx"]
+mocap_valid_time_ranges = [ [ [ 21.0, 487.0 ] ] ] # in seconds
+mocap_topology_files = [None] # only used for .npz files
+mocap_pos_scale = 1.0
+mocap_fps = 50
+
+"""
 # Example: NPZ
 mocap_file_path = "data/mocap/"
 mocap_files = ["MadelineHarms_Improvisation.npz"]
@@ -66,6 +74,8 @@ mocap_valid_time_ranges = [ [ [ 10.0, 884.0 ] ] ] # in seconds
 mocap_topology_files = [ "data/configs/Mediapipe_config.json" ] # only used for .npz files
 mocap_pos_scale = 100.0
 mocap_fps = 25
+"""
+
 
 mocap_loss_weights_file = None
 train_root_trajectory = False
@@ -74,7 +84,7 @@ train_root_trajectory = False
 # Save Paths Settings
 # -------------------------------------------------------------------------------------------------
 
-save_path = "results/Madeline_Improvisation_npz/"
+save_path = "results/Saskia_Bipolar_Final_50hz_07.12.2025_fbx/"
 save_weights_path = save_path + "weights/"
 save_history_path = save_path + "history/"
 save_anims_path = save_path + "anims/"
